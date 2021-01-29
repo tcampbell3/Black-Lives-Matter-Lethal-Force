@@ -5,5 +5,7 @@ The "Master.do" do-file reports each step of the analysis. The anlysis was carri
 
 While all of the source data used in the analysis is publically availible, some of the sources cannot be shared; they require users to agree to a data use agreement. Hence, the replication data only includes the constructed datasets used for the analysis (census place level aggregates). For this reason, any replication will need to skip to line 100 of the "Master.do" do-file.
 
+[![DOI](https://zenodo.org/badge/334200271.svg)](https://zenodo.org/badge/latestdoi/334200271)
+
 ## Author
 - Travis Campbel -- Contact me at tbcampbell@umass.edu
