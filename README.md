@@ -8,4 +8,4 @@ While all of the source data used in the analysis is publically availible, some 
 [![DOI](https://zenodo.org/badge/334200271.svg)](https://zenodo.org/badge/latestdoi/334200271)
 
 ## Author
-- Travis Campbel -- Contact me at tbcampbell@umass.edu
+- Travis Campbell -- Contact me at tbcampbell@umass.edu
