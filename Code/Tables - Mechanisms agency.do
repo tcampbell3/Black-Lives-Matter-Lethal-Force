@@ -185,12 +185,12 @@ forvalues c = 1/9{
 	local N = "`N' & \small{`n'} "
 	
 	* Treated
-	unique fips if treated==1	
+	unique unit if treated==1	
 	local t = trim("`: display %10.0fc r(unique)'")
 	local treated = "`treated' & `t'"
 	
 	* Donor
-	unique fips if donor==1	
+	unique unit if donor==1	
 	local d = trim("`: display %10.0fc r(unique)'")
 	local donor = "`donor' & `d'"
 

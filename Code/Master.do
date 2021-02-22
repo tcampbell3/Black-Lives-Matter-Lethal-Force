@@ -93,10 +93,10 @@ do "Do Files/2 - Agency panel body camera"
 
 do "Do Files/2 - Agency panel characteristics"  
 
-do "Do Files/2 - Agency panel crime"  
+do "Do Files/2 - Agency panel crime"  // "crime_share" constructed later, float storage > github 25mb
+*/
 
-* 2) Create Stacked Dataset
-
+* 2) Create Stacked Dataset <<<<(START REPLICATION EXERCISES HERE)>>>>
 do "Do Files/3 - Stacked Dataset"
 
 * 3) Create Inverse Probability Weights
@@ -105,7 +105,7 @@ global outcome="homicides"
 do "Do Files/4 - ipw"
 do "Do Files/4 - unit" 
 do "Do Files/4 - time"
-*/
+
 
 
 ********************************

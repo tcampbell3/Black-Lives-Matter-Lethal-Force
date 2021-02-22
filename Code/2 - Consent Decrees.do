@@ -182,3 +182,8 @@ replace consent_decree3 = 1 if city=="Steubenville city" & stabb=="OH" & qtr >= 
 replace consent_decree1 = 0 if consent_decree3 == 1 | consent_decree2 == 1
 replace consent_decree2 = 0 if consent_decree3 == 1
 save DTA/Summary, replace
+
+* Save zipfile
+cd DTA
+zipfile Summary.dta, saving(Summary, replace)
+cd ..

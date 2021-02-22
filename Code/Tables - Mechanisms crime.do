@@ -73,7 +73,7 @@ forvalues c = 1/7{
 		use "DTA/Agency_panel_crime", clear
 		local Time = "`Time' & Annual"
 		local Years = "`Years' & 2000-2019"
-		local outcome = "crime_violent_rpt"
+		local outcome = "crime_violent_clr"
 		local Outcome = "`Outcome' & Cleared violent crimes"
 		local weight = ""
 		local benchmark_row = "`benchmark_row'& None"
@@ -113,6 +113,7 @@ forvalues c = 1/7{
 	if `c' == 7{
 	
 		use "DTA/Agency_panel_crime", clear
+		g crime_share = crime_property_clr/crime_property_rpt
 		local Time = "`Time' & Annual"
 		local Years = "`Years' & 2000-2019"
 		local outcome = "crime_share"
@@ -154,12 +155,12 @@ forvalues c = 1/7{
 	local N = "`N' & \small{`n'} "
 	
 	* Treated
-	unique fips if treated==1	
+	unique unit if treated==1	
 	local t = trim("`: display %10.0fc r(unique)'")
 	local treated = "`treated' & `t'"
 	
 	* Donor
-	unique fips if donor==1	
+	unique unit if donor==1	
 	local d = trim("`: display %10.0fc r(unique)'")
 	local donor = "`donor' & `d'"
 

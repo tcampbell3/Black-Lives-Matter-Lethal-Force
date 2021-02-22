@@ -94,9 +94,23 @@ forvalues i=1/9{
 gegen unit = group(ORI9)
 replace strata = strata + unit*1000 if inlist(strata,101,201,301)
 
+* Replace strings with coded numeric to save storage space
+encode ORI9, gen(ori9)
+destring fips, replace
+encode ORI7, gen(ori7)
+drop ORI9 ORI7
+
+* Keep what is needed to save space
+keep event ori9 fips time ag_bodycam FINALWEIGHT strata qtr protests popnum ucr_population pop_c t_* unit treated treatment donor
+
 * Save Body Cam Data
 rename FINALWEIGHT weight
-order event ORI9 time
-gsort event ORI9 time
+order event ori9 time
+gsort event ori9 time
 compress
 save DTA/Agency_panel_bodycam, replace
+
+* Save zipfile
+cd DTA
+zipfile Agency_panel_bodycam.dta, saving(Agency_panel_bodycam, replace)
+cd ..

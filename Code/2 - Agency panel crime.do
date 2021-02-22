@@ -92,10 +92,33 @@ forvalues i=1/9{
 	local e = -5+`i'
 	g t_`i' = inlist(time,`e') & inlist(treated, 1)
 }	
-	
-* Save Body Cam Data
+
+* Replace strings with coded numeric to save storage space
 gegen unit = group(ORI7)
-order event unit time ORI7 year
+destring fips, replace
+encode ORI7, gen(ori7)
+drop ORI7
+
+* Keep what is needed to save space
+keep event ori7 fips time year protests popnum ucr_population pop_c t_* unit treated treatment donor	///
+	crime_officer_assaulted crime_murder_rpt crime_violent_rpt crime_violent_clr crime_property_rpt crime_property_clr
+	
+* Convert crime counts to long
+foreach v of varlist crime*{
+	cap drop _dummy
+	g long _dummy = `v'
+	drop `v'
+	rename _dummy `v'
+}
+
+* Save Body Cam Data
+order event unit time ori7 year
 gsort event unit year year
 compress
 save DTA/Agency_panel_crime, replace
+
+* Save zipfile
+cd DTA
+zipfile Agency_panel_crime.dta, saving(Agency_panel_crime, replace)
+cd ..
+
