@@ -8,6 +8,14 @@ assert r(N) == r(unique)
 expand 20														// 20 years, 4 qtr (2000-2019)
 bys fips ORI9 ORI7 stname agency: g year = 2000+_n-1
 
+* Count crimes by census fips, merge later
+preserve
+	merge m:1 ORI7 year using DTA/Crimes, nogen keep(1 3)
+	gcollapse (nansum) crime_*, by(fips year)
+	tempfile ucr
+	save `ucr', replace
+restore
+
 * Merge Lemas
 tempfile temp
 forvalues y = 2013(3)2016{
@@ -37,9 +45,6 @@ forvalues y = 2013(3)2016{
 
 }
 
-* Merge Crimes
-merge m:1 ORI7 year using DTA/Crimes, nogen keep(1 3)
-
 * Merge LEMAS body worn camera supplement
 expand 4
 bys fips ORI9 ORI7 stname agency year: g qtr = _n
@@ -54,8 +59,10 @@ replace ORI7 = "" if ORI7 =="-1"
 replace FINALWT=1 if FINALWT==.
 drop if inlist(fips,"")
 gcollapse (mean) `vars' [aw=FINALWT], by(fips qtr)
-save `temp', replace
 
+* Merge UCR
+merge m:1 fips year using  `ucr', nogen
+save `temp', replace
 
 **** 2) City level data ****
 
@@ -138,7 +145,7 @@ gen geo_density_house_land=geo_housing/geo_land
 
 * Coarsen Controls
 g ag_policing= (ag_officers)/popestimate
-g crime = (crime_violent + crime_property)/popestimate
+g crime = (crime_violent_rpt + crime_property_rpt)/popestimate
 g crime_officer_safety = (crime_officer_felony+crime_officer_assaulted)/ag_officers
 replace crime_officer_safety =1 if crime_officer_safety >1
 fastxtile  pop_c=popestimate, n(10) 

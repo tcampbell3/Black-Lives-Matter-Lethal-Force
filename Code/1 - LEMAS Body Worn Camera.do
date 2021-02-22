@@ -12,6 +12,9 @@ cd "${user}"
 
 ****** 2) Define Variables **********
 
+* Sampling strata
+rename STRATA strata
+
 * Location (recode agency names with missing ORI number to match backbone)
 g agency = upper(AGENCY_NAME)
 rename AGENCY_STATE stabb
@@ -33,10 +36,10 @@ foreach v of varlist ag_* {
 * Keep what is needed
 drop if inlist(ORI9,"")
 drop if ag_bodycam == .
-keep ORI9 ag_* FINAL
+keep ORI9 ag_* FINAL strata
 
 * Collapse into ORI means
-gcollapse ag_* FINAL [aw=FINAL] , by(ORI9)
+gcollapse ag_* FINAL strata [aw=FINAL] , by(ORI9)
 
 * make Quarterly panel from 2000-2016
 expand 68

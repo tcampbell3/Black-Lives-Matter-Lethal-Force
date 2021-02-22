@@ -32,9 +32,70 @@ gen treated=(total_protests>=1)
 gen donor=(total_protests==0)
 gen treatment = (cum_protests>0)
 
+* Coarsen population
+fastxtile  pop_c=ucr_population, n(10) 
+
+* Stack by cohort
+
+	* 1) Number events
+	bys ORI7: egen protest_start = min(year) if inlist(treatment,1)
+	bys ORI7 (protest_start): replace protest_start = protest_start[_n-1] if inlist(protest_start, .)
+	egen event=group(protest_start)
+	sum event
+	local last=r(max)
+
+	* 2) Save tempfile of full data
+	tempfile full
+	save `full', replace
+	
+	* 3) Loop through events and stack
+	local window=5
+	tempfile temp
+	quietly{
+	forvalues i=1/`last'{
+
+		preserve
+				
+			* Open full data
+			use `full', clear
+			
+			* Keep event's treated and donors
+			keep if inlist(event,`i')|inlist(donor,1)
+			
+			* Label cohort
+			replace event = `i'
+	
+			* Event time
+			gsort protest_start
+			replace protest_start = protest_start[_n-1] if inlist(protest_start, .)
+			g time = year - protest_start
+			
+			* Drop outside of event window
+			drop if time >=`window'
+			
+			* Save tempfile to stack
+			save `temp', replace
+		
+		restore
+		
+		if `i'==1{
+			use `temp', clear
+		}
+		else{
+			append using `temp'
+		}
+	}	
+	}
+
+* Treatment time dummies
+forvalues i=1/9{
+	local e = -5+`i'
+	g t_`i' = inlist(time,`e') & inlist(treated, 1)
+}	
+	
 * Save Body Cam Data
 gegen unit = group(ORI7)
-order ORI7 unit fips year
-sort ORI7 year
+order event unit time ORI7 year
+gsort event unit year year
 compress
 save DTA/Agency_panel_crime, replace

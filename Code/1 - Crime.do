@@ -26,10 +26,15 @@ drop if number_of_months_missing==12
 replace fips = "1571550" if fips=="1517000" 
 
 * Clean crime measures
-rename tot_clr_index_violent crime_violent
-rename tot_clr_index_property crime_property
-rename unfound_index_total crime_unfounded
-foreach var in crime_violent crime_property crime_unfounded{
+rename tot_clr_index_property crime_property_clr
+rename tot_clr_index_violent crime_violent_clr
+rename actual_index_violent crime_violent_rpt
+rename actual_index_property crime_property_rpt
+rename actual_murder crime_murder_rpt
+rename officers_killed_by_felony crime_officer_felony
+rename officers_killed_by_accident crime_officer_accident
+rename officers_assaulted crime_officer_assaulted
+foreach var of varlist crime_* {
 
 	* Bottom code crime indexs at zero
 	replace `var' = 0 if `var' < 0
@@ -38,14 +43,12 @@ foreach var in crime_violent crime_property crime_unfounded{
 	replace `var'  = `var'*12/(12-number_of_months_missing)
 	
 }
-
-rename officers_killed_by_felony crime_officer_felony
-rename officers_killed_by_accident crime_officer_accident
-rename officers_assaulted crime_officer_assaulted
+g crime_share = (crime_property_clr)/(crime_property_rpt)
 
 * save
 rename ori ORI7
-keep ORI7 year crime*
+rename population_1 ucr_population
+keep ORI7 year crime* ucr_population
 drop if year < 2000
 compress
 save DTA/Crimes, replace

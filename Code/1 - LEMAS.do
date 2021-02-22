@@ -25,7 +25,15 @@ forvalues year = 2013(3)2016{
 	cd "${user}"
 
 	****** 2) Define Variables **********
-
+	
+	* Sampling strata
+	if inlist(`year',2013){
+		rename STRATCODE strata
+	}
+	if inlist(`year',2016){
+		rename STRATA strata
+	}
+	
 	* Location (recode agency names with missing ORI number to match backbone)
 	if inlist(`year',2013){
 		g agency = upper(BJS_AGENCYNAME)
@@ -337,11 +345,11 @@ forvalues year = 2013(3)2016{
 		}
 	}
 	cap rename FINALWGT FINALWT
-	keep ORI* FINALWT `lower'
+	keep ORI* FINALWT  strata `lower'
 
 	* save file
 	aorder
-	order ORI* FINALWT agency stabb city year
+	order ORI* FINALWT strata agency stabb city year
 	compress
 	save DTA/LEMAS_`year', replace
 	
