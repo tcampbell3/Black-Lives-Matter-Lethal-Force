@@ -26,21 +26,7 @@ forvalues c = 1/7{
 	local firstrow = "`firstrow' & (`c')"
 	
 	* specification
-	if `c' == 1 {
-	
-		use "DTA/Agency_panel_crime", clear
-		local Time = "`Time' & Annual"
-		local Years = "`Years' & 2000-2019"
-		local outcome = "crime_officer_assaulted"
-		local Outcome = "`Outcome' & Officer assaults"
-		local weight = ""
-		local benchmark_row = "`benchmark_row'& None"
-		local absorb = "event#time event#unit event#pop_c##c.ucr_population"
-		local Bench = "`Bench' & 1 "	
-		local dataset="crime"
-		
-	}	
-	if `c' == 2{
+	if `c' == 1{
 	
 		use "DTA/Agency_panel_crime", clear
 		local Time = "`Time' & Annual"
@@ -54,7 +40,7 @@ forvalues c = 1/7{
 		local dataset="crime"
 		
 	}
-	if `c' == 3 {
+	if `c' == 2 {
 	
 		use "DTA/Agency_panel_crime", clear
 		local Time = "`Time' & Annual"
@@ -68,7 +54,7 @@ forvalues c = 1/7{
 		local dataset="crime"
 		
 	}
-	if `c' == 4 {
+	if `c' == 3 {
 	
 		use "DTA/Agency_panel_crime", clear
 		local Time = "`Time' & Annual"
@@ -82,7 +68,7 @@ forvalues c = 1/7{
 		local dataset="crime"
 		
 	}
-	if `c' == 5{
+	if `c' == 4 {
 	
 		use "DTA/Agency_panel_crime", clear
 		local Time = "`Time' & Annual"
@@ -96,7 +82,7 @@ forvalues c = 1/7{
 		local dataset="crime"
 		
 	}
-	if `c' == 6{
+	if `c' == 5{
 	
 		use "DTA/Agency_panel_crime", clear
 		local Time = "`Time' & Annual"
@@ -110,7 +96,7 @@ forvalues c = 1/7{
 		local dataset="crime"
 		
 	}
-	if `c' == 7{
+	if `c' == 6{
 	
 		use "DTA/Agency_panel_crime", clear
 		g crime_share = crime_property_clr/crime_property_rpt
@@ -124,10 +110,24 @@ forvalues c = 1/7{
 		local Bench = "`Bench' & 1 "	
 		local dataset="crime"
 		
+	}
+	if `c' == 7 {
+	
+		use "DTA/Agency_panel_crime", clear
+		local Time = "`Time' & Annual"
+		local Years = "`Years' & 2000-2019"
+		local outcome = "crime_officer_assaulted"
+		local Outcome = "`Outcome' & Officer assaults"
+		local weight = ""
+		local benchmark_row = "`benchmark_row'& None"
+		local absorb = "event#time event#unit event#pop_c##c.ucr_population"
+		local Bench = "`Bench' & 1 "	
+		local dataset="crime"
+		
 	}	
 	
 	* Find pretreatment mean
-	sum `outcome' `weight' if time<0 & time>=-4 & treated==1, meanonly
+	sum `outcome' `weight' if time<0 & time>=-1 & treated==1, meanonly
 	local b=r(mean)
 	_round , number(`b')
 	local rounded = r(rounded)
@@ -140,9 +140,9 @@ forvalues c = 1/7{
 		lincom treatment/`b'
 	}
 	else{
-		reghdfe `outcome' treatment t_1-t_4 `weight', cluster(unit) absorb(`absorb' )
+		reghdfe `outcome' t_1-t_9 `weight', cluster(unit) absorb(`absorb' )
 		di "TESTING AVERAGE TREATMENT"
-		lincom (treatment - (t_1+t_2+t_3+t_4)/4)/`b'
+		lincom ((t_5+t_6+t_7+t_8+t_9)/5- (t_1+t_2+t_3+t_4)/4)/`b'
 	}
 	local est_overall = trim("`: display %10.3f r(estimate)'")
 	local post_ave = r(estimate)
@@ -192,6 +192,8 @@ tex \begin{tabular}{l*{7}{P{2cm}}}
 tex \toprule[.05cm]
 tex `firstrow' \\
 tex \midrule
+tex Outcome `Outcome' \\
+tex \midrule
 
 * Average Effect
 tex Impact of protest (\%\$\Delta\$) `b_ave' \\
@@ -206,7 +208,6 @@ tex Total number of protesters `_total_partic' \\\\
 
 * Sample size and specification
 tex Sample size `N' \\
-tex Outcome `Outcome' \\
 tex Years `Years' \\
 tex Time unit `Time' \\
 /*tex

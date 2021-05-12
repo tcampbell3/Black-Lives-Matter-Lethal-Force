@@ -18,6 +18,7 @@ rename dateofin date
 rename street street
 rename agency agency
 rename oria ORI9
+g video= !inlist(trim(bodycam),"No") if !inlist(bodycam,"")
 
 * Date
 gen year=year(date)
@@ -26,7 +27,7 @@ gen day=day(date)
 drop if year>2019
 
 * keep what is used
-keep age name gender race city stabb zipcode county street agency causeofdeath unarmed year month day Lat Long ORI9
+keep age name gender race city stabb zipcode county street agency causeofdeath unarmed year month day Lat Long ORI9 video
 drop if name==""
 
 * Relabel certain causes of death (so FE data match up since these typically are not from police homicides)
@@ -70,29 +71,31 @@ graph export "Output/piegraph_mapping_police_all_cases.pdf", replace
 
 
 ********* Pie Graph ***********
+preserve
 
-* Relabel & verify only correct causes kept
-drop if cause=="Other"|cause=="Vehicle"
-keep if inlist(cause,"Asphyxiated","Beaten","Pepper Spray","Gunshot","Taser")
+	* Relabel & verify only correct causes kept
+	drop if cause=="Other"|cause=="Vehicle"
+	keep if inlist(cause,"Asphyxiated","Beaten","Pepper Spray","Gunshot","Taser")
 
-* save total fatal encounters
-tempname scs
-file open `scs' using "Output\Notes\total_mapping_police.txt", text write replace
-sum year if year>=2013
-local output=r(N)
-di %15.0fc `output'
-file write `scs' `" `: display %15.0fc `output' ' "' _n
+	* save total fatal encounters
+	tempname scs
+	file open `scs' using "Output\Notes\total_mapping_police.txt", text write replace
+	sum year if year>=2013
+	local output=r(N)
+	di %15.0fc `output'
+	file write `scs' `" `: display %15.0fc `output' ' "' _n
 
-* police killings pie graph
-graph pie if year>=2013 ,over(causeofdeath)  legend(size(small)) scheme(plotplain) ///
-legend(subtitle("N = `output'",position(11))) ///
-pie(1,  color(olive_teal)) ///
-pie(2, color(green)) ///
-pie(3, color(red%75)) plabel(3 percent, size(*1.5) color(white)) plabel(3 name, size(*1.5) color(white) gap(-7cm)) ///
-pie(4, color(teal)) ///
-pie(5,  color(purple)) 
-graph export "Output/piegraph_mapping_police.pdf", replace
-
+	* police killings pie graph
+	graph pie if year>=2013 ,over(causeofdeath)  legend(size(small)) scheme(plotplain) ///
+	legend(subtitle("N = `output'",position(11))) ///
+	pie(1,  color(olive_teal)) ///
+	pie(2, color(green)) ///
+	pie(3, color(red%75)) plabel(3 percent, size(*1.5) color(white)) plabel(3 name, size(*1.5) color(white) gap(-7cm)) ///
+	pie(4, color(teal)) ///
+	pie(5,  color(purple)) 
+	graph export "Output/piegraph_mapping_police.pdf", replace
+	
+restore
 
 ************* PLACE FIPS *******************
 
@@ -188,15 +191,31 @@ g homicides_gun_mpv = (causeofdeath=="Gunshot")
 
 * save daily file
 drop if fips==""
-g date = year*10000+month*100+day
-collapse (sum) homicides* (first) stabb city qtr, by(fips date)	
+g date = mdy(month,day,year)
+format date %d
+preserve
+	keep fips date name
+	bys fips date: g j=_n
+	greshape wide name, i(fips date) j(j)
+	g name=name1
+	foreach v of varlist name*{
+		if !inlist("`v'","name1","name"){
+			replace name=name+","+`v' if !inlist(`v',"")
+		}
+	}
+	keep name fips date
+	tempfile temp
+	save `temp',replace
+restore
+collapse (sum) homicides* video (first) stabb city qtr, by(fips date)
+merge 1:1 fips date using `temp', nogen
 order fips stabb city date
 sort fips date
 compress
 save "DTA/Mapping_Police_Daily", replace
 
 * save quarterly file
-collapse (sum) homicides* (first) stabb city , by(fips qtr)
+collapse (sum) homicides* video (first) stabb city , by(fips qtr)
 order fips stabb city qtr
 sort fips qtr
 compress

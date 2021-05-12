@@ -89,7 +89,7 @@ forvalues c = 1/5{
 			drop test	
 
 			* Find pretreatment mean
-				quietly sum $outcome `weight' if time<0 & time>=-4 & treated==1
+				quietly sum $outcome `weight' if time<0 & time>=-4 & treated==1, meanonly
 				local b=r(mean)
 
 			* Estimates	
@@ -123,9 +123,9 @@ tex \midrule
 tex Maximum protest size&  \vspace{.1cm}\\
 tex \quad Quartile 1 ($\leq$ `p_size_max1') `b_p_size_max_1' \\
 tex  `se_p_size_max_1'\\
-tex \quad Quartile 2 ($\leq$ `p_size_max2') `b_p_size_max_2' \\
+tex \quad Quartile 2 ($\leq$ `p_size_max2', $>$ `p_size_max1') `b_p_size_max_2' \\
 tex  `se_p_size_max_2' \\
-tex \quad Quartile 3 ($\leq$ `p_size_max3') `b_p_size_max_3' \\
+tex \quad Quartile 3 ($\leq$ `p_size_max3', $>$ `p_size_max2') `b_p_size_max_3' \\
 tex  `se_p_size_max_3' \\
 tex \quad Quartile 4 ($>$ `p_size_max3') `b_p_size_max_4'  \\
 tex  `se_p_size_max_4' \\\\
@@ -134,9 +134,9 @@ tex  `se_p_size_max_4' \\\\
 tex Total number of protests&  \vspace{.1cm}\\
 tex \quad Quartile 1 ($\leq$ `total_protests1') `b_total_protests_1' \\
 tex  `se_total_protests_1'\\
-tex \quad Quartile 2 ($\leq$ `total_protests2') `b_total_protests_2' \\
+tex \quad Quartile 2 ($\leq$ `total_protests2', $>$ `total_protests1') `b_total_protests_2' \\
 tex  `se_total_protests_2' \\
-tex \quad Quartile 3 ($\leq$ `total_protests3') `b_total_protests_3' \\
+tex \quad Quartile 3 ($\leq$ `total_protests3', $>$ `total_protests2') `b_total_protests_3' \\
 tex  `se_total_protests_3' \\
 tex \quad Quartile 4 ($>$ `total_protests3') `b_total_protests_4' \\
 tex  `se_total_protests_4' \\\\
@@ -144,7 +144,7 @@ tex  `se_total_protests_4' \\\\
 tex Cohort-place fixed effects `place_fe' \\
 tex Cohort-time fixed effects `time_fe' \\
 tex Population controls `pop' \\
-tex Consent decress controls `consent' \\
+tex Consent decree controls `consent' \\
 tex Cohort-place linear time trend `lin' \\
 tex Cohort-time-population fixed effects `pop_time' \\
 

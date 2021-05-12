@@ -31,15 +31,16 @@ foreach v of varlist ag_* {
 }
 
 
+
 ****** 3) Reformat to quarterly dataset **********
 
 * Keep what is needed
 drop if inlist(ORI9,"")
 drop if ag_bodycam == .
-keep ORI9 ag_* FINAL strata
+keep ORI9 ag_* FINAL strata Q16M*
 
 * Collapse into ORI means
-gcollapse ag_* FINAL strata [aw=FINAL] , by(ORI9)
+gcollapse ag_* Q16M* FINAL strata [aw=FINAL] , by(ORI9)
 
 * make Quarterly panel from 2000-2016
 expand 68

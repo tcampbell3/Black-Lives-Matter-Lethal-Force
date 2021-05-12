@@ -52,14 +52,14 @@ global key="a5459543a82b450d8bd78c45e2107fcc" 	// exires in one month. See https
 do "Do Files/1 - Annuel Survey of Public Employment"
 
 * Black Lives Matter Protests (34 geocodes)
-global key="a5459543a82b450d8bd78c45e2107fcc" 	// exires in one month. See https://opencagedata.com/dashboard
+global key="c87eafdd3d884f758ea0933f407fe229" 	// exires in one month. See https://opencagedata.com/dashboard
 do "Do Files/1 - Black Lives Matter Protests"
 
 * Police homicides
 do "Do Files/1 - Fatal Encounters City Geocode" 
 
 * Police homicides (higher quality data, but smaller timeframe)  (8 geocodes)
-global key="a5459543a82b450d8bd78c45e2107fcc" 	// exires in one month. See https://opencagedata.com/dashboard
+global key="c87eafdd3d884f758ea0933f407fe229" 	// exires in one month. See https://opencagedata.com/dashboard
 do "Do Files/1 - Mapping Police Violence" 
 
 * Census region and division by state
@@ -84,27 +84,21 @@ do "Do Files/1 - Democratic Vote Share" 		// requires crosswalk and opencage API
 *******************************************************
 
 * 1) Create Summary Dataset
-
 do "Do Files/2 - Full Dataset" 
-
 do "Do Files/2 - Consent Decrees" 
-
 do "Do Files/2 - Agency panel body camera"  
-
 do "Do Files/2 - Agency panel characteristics"  
-
 do "Do Files/2 - Agency panel crime"  // "crime_share" constructed later, float storage > github 25mb
+
+* 2) Create appendix datasets
+do "Do Files/Appendix - County dataset.do"
+do "Do Files/Appendix - Case studies.do"
+do "Do Files/Appendix - Case study daily panel.do"
+do "Do Files/Appendix - Stacked Video Dataset.do"
 */
 
-* 2) Create Stacked Dataset <<<<(START REPLICATION EXERCISES HERE)>>>>
+* 3) Create Stacked Dataset <<<<(START REPLICATION EXERCISES HERE)>>>>
 do "Do Files/3 - Stacked Dataset"
-
-* 3) Create Inverse Probability Weights
-global controls = "ag_* crime_* acs_* geo_* pol_* h_* consent_*"
-global outcome="homicides"
-do "Do Files/4 - ipw"
-do "Do Files/4 - unit" 
-do "Do Files/4 - time"
 
 
 
@@ -151,7 +145,7 @@ do "Do Files/Figures - Binscatters.do"
 do "Do Files/Figures - Timing.do"
 
 * Mechanisms figure
-*do "Do Files/Figures - Mechanisms.do"	// needs to be updated. for presentations only.
+do "Do Files/Figures - Mechanisms.do"
 
 * Figure 1
 global outcome = "protests_total"
@@ -165,22 +159,6 @@ global title1 = "Cumulative number of protests"
 global title2 = ""
 global path=""
 do "Do Files/Figures - Event Time Effects.do"
-
-* Figure - cities of interest
-global outcome = "homicides"
-global absorb = "i.event#i.time i.event#i.FIPS event#pop_c##c.popestimate"
-global weight = ""
-global color = "green"
-global y = "% {&delta} lethal force"
-global yaxis = "ylabel(-.75(.25).5) ymtick(-.75(.05).5) ysc(titlegap(-5))"
-global pos = 1
-global title1 = "" 
-global title2 = ""
-global path=""
-global cutoff = "19"
-global aspect = ".5"
-global gap = "-10"			// distance from x axis to top
-do "Do Files/Figures - Cities of Interest.do"
 
 * Figure - ferguson effect
 global color1 = "red"
@@ -196,6 +174,32 @@ global aspect = ".5"
 global gap = "-10"			// distance from x axis to top
 do "Do Files/Figures - Ferguson Effect 1.do"
 do "Do Files/Figures - Ferguson Effect 2.do"
+
+* Figure - Body cameras
+global outcome = "ag_bodycam"
+global absorb = "event#time event#ori9 event#pop_c##c.ucr_population"
+global color = "edkblue"
+global y = "% {&Delta} Body cameras"
+global yaxis = "ylabel(-.5(.25)1.25) ymtick(-.5(.05)1.25) ysc(titlegap(-5))"
+global pos = 5
+global title1 = "" 
+global title2 = ""
+global path=""
+do "Do Files/Figures - Body cam.do"
+do "Do Files/Figures - Reason for body camera.do"
+
+* Figure - Videos of police homicides
+global outcome = "video"
+global absorb = "i.event#i.time i.event#i.FIPS event#pop_c##c.popestimate"
+global weight = ""
+global color = "edkblue"
+global y = "% {&Delta} Lethal Force Videos"
+global yaxis = "ylabel(-1(1)6) ymtick(-1(.5)6) ysc(titlegap(-5))"
+global pos = 11
+global title1 = "" 
+global title2 = ""
+global path=""
+do "Do Files/Figures - Event Time Effects.do"
 
 * Figure 1 - Impact of BLM on Police Homicides
 
@@ -290,3 +294,17 @@ do "Do Files/Figures - Ferguson Effect 2.do"
 	global title2 = ""
 	global path="_pop_time_linear"
 	do "Do Files/Figures - Event Time Effects.do"
+	
+********************************
+	   // 5) Appendix
+********************************
+
+* County level panel appendix
+do "Do Files/Appendix - County figures.do"
+
+* Case study appendix
+do "Do Files/Appendix - Case study heterogeneity figure.do"
+
+* Video event study appendix
+do "Do Files/Appendix - Video event time figures.do"
+do "Do Files/Appendix - Video overall figures.do"

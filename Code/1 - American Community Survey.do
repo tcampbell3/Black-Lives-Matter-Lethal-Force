@@ -147,19 +147,21 @@ frame create newframe
 
 	}
 	
+
+	
 	* Define Variables - Education (25 years and older)
-	destring s1501_c01_006e, g(edu_pop) force	
-	destring s1501_c01_007e, g(_9_grade) force	
+	destring s1501_c01_006e, g(edu_pop) 	
+	destring s1501_c01_007e, g(_9_grade) force
 	destring s1501_c01_008e, g(_9_12_grade) force	
 	destring s1501_c01_009e, g(high_school_total) force	
 	destring s1501_c01_010e, g(some_college_total) force
 	destring s1501_c01_011m, g(associates_total) force	
 	destring s1501_c01_012e, g(bachelors_total) force	
 	destring s1501_c01_013e, g(graduate_total) force	
-	gen lt_high_school = (_9_grade+_9_12_grade) / edu_pop
-	gen high_school = high_school_total / edu_pop
-	gen some_college = (some_college_total+associates_total) / edu_pop
-	gen college = (bachelors_total+graduate_total) / edu_pop			
+	gen lt_high_school = (_9_grade+_9_12_grade) / edu_pop * 100 * (year>=2015) + (_9_grade+_9_12_grade) * (year<2015) 
+	gen high_school = high_school_total / edu_pop * 100 * (year>=2015)+ (high_school_total) * (year<2015) 
+	gen some_college = (some_college_total+associates_total)/edu_pop*100* (year>=2015)+(some_college_total+associates_total) * (year<2015) 
+	gen college = (bachelors_total+graduate_total) / edu_pop*100* (year>=2015)+(bachelors_total+graduate_total) * (year<2015)
 	split geo_id, parse("US")
 	rename geo_id2 fips
 	

@@ -187,7 +187,8 @@ g homicides = 1
 
 * save daily file
 drop if fips==""
-g date = year*10000+month*100+day
+g date = mdy(month,day,year)
+format date %d
 collapse (sum) homicides* (first) stabb city qtr, by(fips date)	
 order fips stabb city date
 sort fips date

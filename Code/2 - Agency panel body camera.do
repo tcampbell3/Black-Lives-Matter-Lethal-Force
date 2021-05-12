@@ -85,7 +85,7 @@ egen _time=group(qtr)
 
 * Treatment time dummies
 g event_year=floor(time/4)
-forvalues i=1/9{
+forvalues i=1/7{
 	local e = -5+`i'
 	g t_`i' = inlist(event_year,`e') & inlist(treated, 1)
 }	
@@ -101,7 +101,7 @@ encode ORI7, gen(ori7)
 drop ORI9 ORI7
 
 * Keep what is needed to save space
-keep event ori9 fips time ag_bodycam FINALWEIGHT strata qtr protests popnum ucr_population pop_c t_* unit treated treatment donor
+keep event ori9 fips time ag_bodycam FINALWEIGHT strata qtr protests popnum ucr_population pop_c t_* unit treated treatment donor Q16M*
 
 * Save Body Cam Data
 rename FINALWEIGHT weight

@@ -117,10 +117,12 @@ duplicates drop
 
 // Date
 	drop date*
-	gen date = year * 10000 + month * 100 +day
+	g date = mdy(month,day,year)
+	format date %d
+	gen date_old = year * 10000 + month * 100 +day
 	
 // Drop events during published data timeframe: before September 2015
-	drop if date < 20150901
+	drop if date_old < 20150901
 	keep city stabb qtr popnum date
 	
 // Clean city name
@@ -160,7 +162,8 @@ duplicates drop
 // Date
 	drop date
 	destring date2,replace
-	g date = date3*10000 + date1*100 + date2
+	g date = mdy(date1,date2,date3)
+	format date %d
 	
 // Protest size
 	replace popnum="" if popnum=="NA"

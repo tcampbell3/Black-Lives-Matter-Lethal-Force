@@ -83,10 +83,10 @@ merge 1:1 fips qtr using DTA/Fatel_Encounters_Quarterly, nogen keep(1 3)
 
 * Merge ACS 5 year
 merge m:1 fips year using DTA/ACS_5yr, nogen keep(1 3)
+replace acs_black_pov = acs_black_pov*100
 foreach v in acs_hispanic acs_white acs_black{
 	g `v'_total = `v'
-	replace `v' = `v'_total / popestimate
-	replace `v' = 1 if `v'>1
+	replace `v' = min(`v'_total / popestimate * 100, 100)
 }
 
 * Mapping Police Violence
@@ -117,7 +117,7 @@ foreach var in geo_housing geo_land{
 **** 3) Define variables ****
 
 * Replace missing values with zeros for protests and killings
-foreach var of varlist  homicides* protests* h_* {
+foreach var of varlist  homicides* protests* h_* video{
 	replace `var' = 0 if `var' == .
 }
 replace popnum =0 if protest==0
@@ -134,7 +134,15 @@ bys fips (qtr): replace treatment=treatment[_n-1] if treatment[_n-1] == 1
 * Per capita outcomes
 foreach var of varlist homicides* {
 	gen `var'_p=`var'/popestimate
-}	
+}
+
+* Crime rates
+g ag_policing= (ag_officers)/popestimate
+g crime = (crime_violent_rpt + crime_property_rpt)/popestimate
+g crime_officer_safety = min((crime_officer_felony+crime_officer_assaulted)/ag_officers, 1)
+foreach v of varlist crime_property* crime_murder* crime_violent* {
+	replace `v' = `v' / popestimate
+}
 
 * Population Density
 bys fips (qtr): replace geo_housing=geo_housing[_n-1] if geo_housing==.
@@ -144,10 +152,6 @@ gen geo_density_pop_land=popestimate/geo_land
 gen geo_density_house_land=geo_housing/geo_land
 
 * Coarsen Controls
-g ag_policing= (ag_officers)/popestimate
-g crime = (crime_violent_rpt + crime_property_rpt)/popestimate
-g crime_officer_safety = (crime_officer_felony+crime_officer_assaulted)/ag_officers
-replace crime_officer_safety =1 if crime_officer_safety >1
 fastxtile  pop_c=popestimate, n(10) 
 foreach var of varlist acs_* crime* ag_officers ag_policing{
 	fastxtile `var'_c = `var', n(10)

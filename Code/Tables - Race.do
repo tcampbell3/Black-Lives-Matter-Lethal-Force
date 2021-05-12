@@ -19,26 +19,16 @@ program _round, rclass
 end
 
 * Open Data
-use DTA/summary, clear
-encode fips, gen(FIPS)
-egen time=group(qtr)
+use DTA/stacked, clear
 
 * keep only when MPV has data
 drop if qtr<20131
 
-* treatment dummies
-egen dummy_time = group(qtr)
-bys fips: egen dummy_start = min(dummy_time) if treatment==1
-g dummy_years=floor((dummy_time-dummy_start)/4)
-forvalues i = 0 / 3{
-	g t_`i' = ( dummy_years == `i' )
-}
-replace t_3=1 if dummy_years>=3 & treatment==1
+* Drop pretreatment data to balance stacks
+drop if time<-6
 
 * Pretreament year 1
-bys fips: egen dummy_min = min(dummy_start)
-g pre1 = (dummy_time < dummy_min & dummy_time >= dummy_min-4 )
-drop dummy*
+g pre1 = inlist(time,-1,-2,-3,-4)&inlist(treated,1)
 	
 * Loop over number of columns
 forvalues c = 1/8{
@@ -55,7 +45,7 @@ forvalues c = 1/8{
 		local weight_row = "`weight_row' & None"
 		local group_row = "`group_row'& Total"
 		local benchmark_row = "`benchmark_row'& None"
-		local absorb = "i.time i.FIPS i.pop_c i.pop_c#c.popestimate"
+		local absorb = "event#time event#FIPS  event#pop_c##c.popestimate"
 		local k = "homicides_mpv"
 	
 		* Save pretreatment benchmark
@@ -71,7 +61,7 @@ forvalues c = 1/8{
 		local weight_row = "`weight_row' & \footnotesize{Population}"
 		local group_row = "`group_row'& Total"
 		local benchmark_row = "`benchmark_row'& \footnotesize{Population}"
-		local absorb = "i.time i.FIPS i.pop_c i.pop_c#c.popestimate"
+		local absorb = "event#time event#FIPS  event#pop_c##c.popestimate"
 		local k = "homicides_mpv"
 		
 		* Save pretreatment benchmark
@@ -89,7 +79,7 @@ forvalues c = 1/8{
 		local weight_row = "`weight_row' & None"
 		local group_row = "`group_row'& White"
 		local benchmark_row = "`benchmark_row'& None"
-		local absorb = "i.time i.FIPS i.acs_white_total_c i.acs_white_total_c#c.acs_white_total"
+		local absorb = "event#time event#FIPS  event#acs_white_total_c##c.acs_white_total"
 		local k = "homicides_white_mpv"
 
 		* Save pretreatment benchmark
@@ -105,7 +95,7 @@ forvalues c = 1/8{
 		local weight_row = "`weight_row' & White"
 		local group_row = "`group_row'& White"
 		local benchmark_row = "`benchmark_row'& White"
-		local absorb = "i.time i.FIPS i.acs_white_total_c i.acs_white_total_c#c.acs_white_total"
+		local absorb = "event#time event#FIPS  event#acs_white_total_c##c.acs_white_total"
 		local k = "homicides_white_mpv"
 	
 		* Save pretreatment benchmark
@@ -123,7 +113,7 @@ forvalues c = 1/8{
 		local weight_row = "`weight_row' & None"
 		local group_row = "`group_row'& Black"
 		local benchmark_row = "`benchmark_row'& None"
-		local absorb = "i.time i.FIPS i.acs_black_total_c i.acs_black_total_c#c.acs_black_total"
+		local absorb = "event#time event#FIPS  event#acs_black_total_c##c.acs_black_total"
 		local k = "homicides_black_mpv"
 	
 		* Save pretreatment benchmark
@@ -139,7 +129,7 @@ forvalues c = 1/8{
 		local weight_row = "`weight_row' & Black"
 		local group_row = "`group_row'& Black"
 		local benchmark_row = "`benchmark_row'& Black"
-		local absorb = "i.time i.FIPS i.pop_c i.pop_c#c.popestimate"
+		local absorb = "event#time event#FIPS  event#acs_black_total_c##c.acs_black_total"
 		local k = "homicides_black_mpv"
 		
 		* Save pretreatment benchmark
@@ -157,7 +147,7 @@ forvalues c = 1/8{
 		local weight_row = "`weight_row' & None"
 		local group_row = "`group_row'& \small{Unarmed}"
 		local benchmark_row = "`benchmark_row'& None"
-		local absorb = "i.time i.FIPS i.pop_c i.pop_c#c.popestimate"
+		local absorb = "event#time event#FIPS  event#pop_c##c.popestimate"
 		local k = "outcome"
 		
 		* Save pretreatment benchmark
@@ -173,7 +163,7 @@ forvalues c = 1/8{
 		local weight_row = "`weight_row' & \footnotesize{Population}"
 		local group_row = "`group_row'& \small{Unarmed}"
 		local benchmark_row = "`benchmark_row'& \footnotesize{Population}"
-		local absorb = "i.time i.FIPS i.pop_c i.pop_c#c.popestimate"
+		local absorb = "event#time event#FIPS  event#pop_c##c.popestimate"
 		g _dummy_outcome = homicides_mpv - homicides_armed_mpv
 		local k = "_dummy_outcome"
 		
@@ -192,19 +182,10 @@ forvalues c = 1/8{
 	local Mean = "`Mean' & `mean' "
 	
 	* Estimates	
-	reghdfe outcome t_*  `weight' , cluster(FIPS) absorb(`absorb' )
-
-		forvalues i = 0/3{
-			di "TESTSING TREATMENT `i'"
-			lincom (t_`i')/`b'
-			local est_overall = trim("`: display %10.3f r(estimate)'")
-			local est_se =trim("`: display %10.3f r(se)'")
-			local b`i' = " `b`i''& `est_overall'"
-			local se`i' =" `se`i'' & (`est_se')"
-		}
+	reghdfe outcome treatment `weight' , cluster(FIPS) absorb(`absorb' )
 		
 		di "TESTING AVERAGE TREATMENT"
-		lincom (t_0+t_1+t_2+t_3)/`b'/4
+		lincom (treatment)/`b'
 		local est_overall = trim("`: display %10.3f r(estimate)'")
 		local post_ave = r(estimate)
 		local est_se =trim("`: display %10.3f r(se)'")

@@ -170,9 +170,9 @@ forvalues c = 1/9{
 		lincom treatment/`b'
 	}
 	else{
-		reghdfe `outcome' treatment t_1-t_4 `weight', cluster(strata) absorb(`absorb' )
+		reghdfe `outcome' t_* `weight', cluster(strata) absorb(`absorb' )
 		di "TESTING AVERAGE TREATMENT"
-		lincom (treatment - (t_1+t_2+t_3+t_4)/4)/`b'
+		lincom ((t_5+t_6+t_7)/3 - (t_1+t_2+t_3+t_4)/4)/`b'
 	}
 	local est_overall = trim("`: display %10.3f r(estimate)'")
 	local post_ave = r(estimate)
@@ -222,6 +222,8 @@ tex \begin{tabular}{l*{9}{P{1.6cm}}}
 tex \toprule[.05cm]
 tex `firstrow' \\
 tex \midrule
+tex Outcome `Outcome' \\
+tex \midrule
 
 * Average Effect
 tex Impact of protest (\%\$\Delta\$) `b_ave' \\
@@ -236,7 +238,6 @@ tex Total number of protesters `_total_partic' \\\\
 
 * Sample size and specification
 tex Sample size `N' \\
-tex Outcome `Outcome' \\
 tex Years `Years' \\
 tex Time unit `Time' \\
 /*tex
