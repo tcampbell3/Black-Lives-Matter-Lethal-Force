@@ -78,8 +78,3 @@ order ORI9 unit fips year
 sort ORI9 year
 compress
 save DTA/Agency_panel_characteristics, replace
-
-* Save zipfile
-cd DTA
-zipfile Agency_panel_characteristics.dta, saving(Agency_panel_characteristics, replace)
-cd ..

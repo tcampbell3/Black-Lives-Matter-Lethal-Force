@@ -116,9 +116,3 @@ order event unit time ori7 year
 gsort event unit year year
 compress
 save DTA/Agency_panel_crime, replace
-
-* Save zipfile
-cd DTA
-zipfile Agency_panel_crime.dta, saving(Agency_panel_crime, replace)
-cd ..
-
