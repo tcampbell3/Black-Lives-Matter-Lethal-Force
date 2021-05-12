@@ -22,6 +22,9 @@ set maxvar 20000
 global user = "C:/Users/travi/Dropbox/Police Killings"
 cd "${user}"
 
+/* Create github datasets (github datasets must be split into pieces < 25 mb)
+do "Do Files/github datasets" 
+*/
 
 *******************************************************
 	// 1) Create Individual Datasets (run in order)
@@ -99,6 +102,10 @@ do "Do Files/Appendix - Stacked Video Dataset.do"
 
 * 3) Create Stacked Dataset <<<<(START REPLICATION EXERCISES HERE)>>>>
 do "Do Files/3 - Stacked Dataset"
+
+/* Alternatively, you can append the 4 pieces of the "stacked" dataset on github. 
+   However, noncrutial variables like state names etc. will not be included due 
+   to github file size restrictions. For all variable, use the above do file. */
 
 
 

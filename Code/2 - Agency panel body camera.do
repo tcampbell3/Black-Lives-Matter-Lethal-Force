@@ -109,8 +109,3 @@ order event ori9 time
 gsort event ori9 time
 compress
 save DTA/Agency_panel_bodycam, replace
-
-* Save zipfile
-cd DTA
-zipfile Agency_panel_bodycam.dta, saving(Agency_panel_bodycam, replace)
-cd ..
