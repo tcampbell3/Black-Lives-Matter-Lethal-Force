@@ -1,10 +1,14 @@
-* Open Summary Data
+* Open county data, drop extra pairs for contiguous county sample
 clear all
-use DTA/Summary, clear
+use "DTA/Counties", clear
+destring fips_c, g(fips)
+keep fips popest county stabb qtr protests participants homicides
+gduplicates drop
+drop if inlist(popest,.)
 
 * Number events
 gegen dummy_time = group(qtr)
-bys fips: gegen start_treatment = min(dummy_time) if treatment==1
+bys fips: gegen start_treatment = min(dummy_time) if protests>0
 bys fips (start_treatment): replace start_treatment = start_treatment[_n-1] if inlist(start_treatment,.)
 gegen event=group(start_treatment)
 sum event,meanonly
@@ -16,13 +20,8 @@ drop if qtr>20201
 * Drop never treated
 drop if inlist(start_treatment,.)
 
-* Drop 3 places without pre 2010 data
-bys fips: gegen test=count(qtr)
-sum test, meanonly
-drop if test<r(max)
-drop test
-
 * Loop through cohorts and stack
+g treated=.
 tempvar tframe
 frame create stack
 quietly{
@@ -42,7 +41,6 @@ forvalues i=1/`last'{
 		gen time=dummy_time-r(min)
 		
 		* Donors
-		replace donor=!inlist(event,`i') 
 		replace treated=inlist(event,`i')
 		
 		* Drop outside of event window
@@ -71,6 +69,7 @@ use `temp',clear
 frame drop `tframe'
 order event fips time
 gsort event fips time
+g treatment = time>=0 & inlist(treated,1)
 
 * Drop events without full posttreatment data (or compositional changes can drive results)
 cap drop test
@@ -89,33 +88,13 @@ forvalues i=1/$post {
 	gen t_post`j'=inlist(treated,1) & (time >= `j'*4 & time < (`j'+1)*4)
 }
 
-* Convert fips to numeric
-destring fips, replace
-gsort event fips time
-
-* IPW Weights
-global controls = "popest ag_* crime_* acs_* geo_* pol_* h_* consent_* tweet_*"
-global outcome="homicides"
-do "Do Files/ipw"
-
-* Coarsen controls
-cap drop *_c
-fasterxtile  pop_c=popest, n(10)
-g officers = ag_officers														// Normalization var for table
-g violent = crime_violent_clr													// Normalization var for table
-g arrests = crime_property_clr+crime_violent_clr								// Normalization var for table
-foreach v of varlist acs_* crime_* {
-	fasterxtile  `v'_c=`v', n(10)
-	replace `v'_c = 99 if inlist(`v'_c,.)
-	drop `v'
-}
-
 * SDID weights
+fasterxtile  pop_c=popest, n(10)
 do "Do Files/sdid" homicides fips qtr pop
 
 * Clean and save	
-keep event fips time qtr homicides* t_* treatment treated pop_c _wt* ipw participants total_protests acs_* crime_* consent* popest officers violent arrests protests video
+keep event fips time qtr homicides t_* treatment treated pop_c _wt* participants popest protests
 compress
 gsort event fips time
-save DTA/Stacked, replace
+save DTA/Stacked_counties, replace
 clear all

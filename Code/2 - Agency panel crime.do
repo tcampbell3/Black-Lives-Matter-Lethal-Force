@@ -1,118 +1,143 @@
+* Set up
+tempvar tframe
+frame create `tframe'
+tempfile temp
 
-* ORI9 FIPS crosswalk -> Protest count
+* ORI7 Backbone
 use DTA/backbone, clear
-keep ORI7 fips
 drop if inlist(ORI7,"-1","")
-tempfile ORI7_FIPS
-save `ORI7_FIPS', replace
+expand 22
+bys id: g year=_n+1999
+expand 4
+bys id year: g qtr=year*10+_n
 
-* Annual protest
-use "DTA/protests", clear
-g year = int(round(qtr/10))
-gcollapse (sum) protests popnum, by(fips year)
-tempfile blm
-save `blm', replace
-
-* Open Crime backbone
-use DTA/Crimes, clear
-
-* Merge FIPS
-merge m:1 ORI7 using `ORI7_FIPS', nogen keep(1 3) keepus(fips)
-
-* Merge BLM protests
-merge m:1 fips year using `blm', nogen keep(1 3) keepus(protests popnum)
-drop if inlist(fips,"")
+* Merge BLM protests & UCR Popualation accounting for overlapping juridictions
+merge m:1 fips qtr using DTA/protests, nogen keep(1 3) keepus(protests participants)
 replace protests = 0 if inlist(protest,.)
-replace popnum = 0 if inlist(popnum,.)
+replace participants = 0 if inlist(participants,.)
+gcollapse (sum) protests participants, by(ORI7 year) 
 
-* Define treated, donor, treatment
-bys ORI7 (year): gen cum_protests = sum(protests)
-bys ORI7 (year): egen total_protests = sum(protests)	
-gen treated=(total_protests>=1)
-gen donor=(total_protests==0)
-gen treatment = (cum_protests>0)
+* Drop agencies without protests ever
+bys ORI7 (year): gegen total_protests_2014_2021 = sum(protests)
+drop if inlist(total_protests_2014_2021,0) 
 
-* Coarsen population
-fastxtile  pop_c=ucr_population, n(10) 
+* Protest start
+bys ORI7 (year): gegen protest_start = min(year) if protests>0
+bys ORI7 (protest_start): replace protest_start = protest_start[_n-1] if inlist(protest_start,.)
 
-* Stack by cohort
+* Merge crime
+merge 1:1 ORI7 year using DTA/Crimes, keep(3) nogen
 
-	* 1) Number events
-	bys ORI7: egen protest_start = min(year) if inlist(treatment,1)
-	bys ORI7 (protest_start): replace protest_start = protest_start[_n-1] if inlist(protest_start, .)
-	egen event=group(protest_start)
-	sum event
-	local last=r(max)
+* Drop 2020 data due to covid-19
+drop if inlist(year,2020)
 
-	* 2) Save tempfile of full data
-	tempfile full
-	save `full', replace
-	
-	* 3) Loop through events and stack
-	local window=5
-	tempfile temp
-	quietly{
-	forvalues i=1/`last'{
+* Drop no population agency or misisng
+bys ORI7: gegen test=min(popu)
+drop if inlist(test, 0, .)
+drop test
 
-		preserve
-				
-			* Open full data
-			use `full', clear
-			
-			* Keep event's treated and donors
-			keep if inlist(event,`i')|inlist(donor,1)
-			
-			* Label cohort
-			replace event = `i'
-	
-			* Event time
-			gsort protest_start
-			replace protest_start = protest_start[_n-1] if inlist(protest_start, .)
-			g time = year - protest_start
-			
-			* Drop outside of event window
-			drop if time >=`window'
-			
-			* Save tempfile to stack
-			save `temp', replace
+**** Stack by cohort ****
+
+* 1) Number events
+gen treatment = (year>=protest_start)
+gegen event=group(protest_start)
+
+* 2) Loop through cohorts and stack
+sum event
+local last=r(max)
+tempvar stack
+frame create `stack'
+quietly{
+forvalues i=1/`last'{
 		
-		restore
+	* temp frame of cohort
+	sum protest_start if inlist(event,`i'), meanonly
+	local start=r(mean)
+	cap frame drop `tframe'
+	frame put if inlist(event,`i') | protest_start>`start'+4 | inlist(protest_start,2020), into(`tframe')
+	frame `tframe'{
 		
+		* Event time
+		gen time=year-`start'
+		g treated = inlist(event,`i')
+		
+		* Drop outside of event window
+		drop if time > 4 | time < -5
+		
+		* label event and save stack
+		replace event=`i'
+		tempfile temp
+		save `temp'
+		
+	}
+	
+	* Stack
+	frame `stack'{
 		if `i'==1{
 			use `temp', clear
 		}
 		else{
 			append using `temp'
 		}
-	}	
 	}
-
-* Treatment time dummies
-forvalues i=1/9{
-	local e = -5+`i'
-	g t_`i' = inlist(time,`e') & inlist(treated, 1)
 }	
+}
+frame `stack': save `temp', replace
+use `temp',clear
+frame drop `tframe'
+order event ORI7 time
+gsort event ORI7 time
+
+* Pretreatment dummies
+forvalues i=2/5 {
+	gen t_pre`i'=inlist(treated,1) & inlist(time,-`i')
+}
+
+* Posttreatment dummies
+forvalues i=0/4{
+	gen t_post`i'=inlist(treated,1) & inlist(time,`i')
+}
+
+* Drop events without post treatment event window
+bys event: gegen test = nunique(time)
+drop if test<6
+drop test
 
 * Replace strings with coded numeric to save storage space
 gegen unit = group(ORI7)
-destring fips, replace
 encode ORI7, gen(ori7)
 drop ORI7
 
-* Keep what is needed to save space
-keep event ori7 fips time year protests popnum ucr_population pop_c t_* unit treated treatment donor	///
-	crime_officer_assaulted crime_murder_rpt crime_violent_rpt crime_violent_clr crime_property_rpt crime_property_clr
-	
-* Convert crime counts to long
-foreach v of varlist crime*{
-	cap drop _dummy
-	g long _dummy = `v'
-	drop `v'
-	rename _dummy `v'
-}
+* Balance panal
+cap drop test
+bys event ori7: g test1=_N
+bys event: gegen test2=max(test1)
+drop if test1<test2
+drop test*
 
-* Save Body Cam Data
-order event unit time ori7 year
-gsort event unit year year
+* Impute crime share if missing temporarily for SDID weights to be defined (.35% missing....)
+g _impute_flag = inlist(crime_share,.)
+reg crime_share year protests participants total_protests_2014_2021 protest_start population crime_officer_felony crime_officer_accident crime_officer_assaulted crime_murder_rpt crime_violent_rpt crime_property_rpt crime_violent_clr crime_property_clr
+predict dummy
+replace crime_share = dummy if inlist(crime_share,.)
+drop dummy
+
+* Coursen controls
+fasterxtile  pop_c=population, n(10)
+
+* SDID weights
+foreach v of varlist crime_officer_assaulted crime_murder_rpt crime_violent_rpt crime_violent_clr crime_property_rpt crime_property_clr crime_share{
+	do "Do Files/sdid" `v' ori7 year
+	rename _wt_unit _unit_`v'
+	rename _wt_sdid _sdid_`v'
+}
+replace crime_share=. if inlist(_impute_flag,1)
+
+* Keep what is needed to save space
+keep event ori7 time year protests partic population pop_c t_* treated treatment unit	*crime_officer_assaulted *crime_murder_rpt *crime_violent_rpt *crime_violent_clr *crime_property_rpt *crime_property_clr *crime_share
+
+* Save
+order event unit ori7 time year
+gsort event unit year
 compress
 save DTA/Agency_panel_crime, replace

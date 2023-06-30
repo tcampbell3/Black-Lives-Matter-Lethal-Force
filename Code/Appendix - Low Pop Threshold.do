@@ -1,35 +1,14 @@
 clear all
-use DTA/Stacked, clear
-
-* Define quartile cutoffs by total number of protesters per capita
-g par_pop = participants/popest
-bys event fips: gegen protesters = sum(par_pop)
-fasterxtile cutoffs = protesters if inlist(treated,1), n(4)
-replace cutoffs = 0 if inlist(treated,0)
-
-* Save tempfile
-tempfile temp
-save `temp', replace
-
+global absorb = "i.event#i.time i.event#i.FIPS i.event#i.pop_c i.event#i.pop_c#c.popestimate"
 * Loop over number of regression column specifications
-forvalues c = 0/4{
+forvalues c=100000(25000)200000{
 	
-	* Open sample
-	if `c'==0{
-		use DTA/Stacked, clear
-	}
-	else{
-		use `temp', clear
-		keep if inlist(cutoff,0,`c')
-		bys event: gegen test = max(treated)
-		drop if inlist(test,0)
-		cap drop pop_c
-		fasterxtile pop_c=popest, n(10)
-		do "Do Files/sdid" homicides fips qtr pop
-	}
-	
-	* Estimate
-	reghdfe homicides treatment [aw=_wt_unit], cluster(fips) a(event#fips event#time event#pop_c##c.popest)
+	* Population screen
+	use DTA/stacked_pop_`c', clear
+	cap drop dummy
+	bys fips: egen dummy = min(popest)
+	local screen: di %10.0fc `c'
+	reghdfe homicides treatment [aw=ipw], cluster(fips) a(event#fips event#time event#pop_c##c.popest)
 	eststo
 	
 	* Pretreatment mean
@@ -37,7 +16,7 @@ forvalues c = 0/4{
 	local b=r(mean)
 	local pre: di %10.2gc round(r(mean),.01)	
 	estadd local pre = "`pre'"
-		
+
 	* Store regression results
 	lincom treatment/`b'*100
 	local beta: di %10.2fc round(r(estimate),.01)	
@@ -66,15 +45,15 @@ forvalues c = 0/4{
 	
 	* Treated, control, cohorts
 	cap drop _samp
-	bys treated: gegen _samp=nunique(fips) if _wt_unit >0
+	bys treated: gegen _samp=nunique(fips)
 	sum _samp if inlist(treated,1),meanonly
 	local treated: di %10.3gc round(r(mean),.001)	
 	estadd local tr = "`treated'"
 	sum _samp if inlist(treated,0),meanonly
 	local control: di %10.3gc round(r(mean),.001)	
 	estadd local co = "`control'"
-	unique event
-	local cohorts: di %10.3gc round(r(unique),.001)	
+	sum event, meanonly
+	local cohorts: di %10.3gc round(r(max),.001)	
 	estadd local coh = "`cohorts'"
 	
 	* Sample Size
@@ -100,21 +79,16 @@ forvalues c = 0/4{
 	estadd local participants = "`participants'"	
 	
 	* Column title
-	if `c'==0{
-		estadd local coltitle = "Full"
-	}
-	else{
-		estadd local coltitle = "`c'"
-	}		
+	estadd local coltitle = "`screen'"
 }
 
 * Save Table
-esttab est* using Output/protest_size_freq.tex, 								///
+esttab est* using Output/low_pop_thresh.tex, 									///
 	stats(coltitle overall_beta overall_se prevented_beta prevented_se pre 		///
 		total_exposed deaths protests participants tr co coh obs,				///
 		fmt( %010.0gc )															///
 		label(																	///
-		"\midrule \textbf{Protest size quartile:} "								///
+		"\midrule \textbf{Treated population threshold:} "						///
 		"\midrule\addlinespace[0.3cm]\$\%\Delta\text{Lethal Force}\$" 			///
 			" " 																///
 		"\addlinespace[0.3cm]\$\Delta\text{Total Lethal Force}\$" 				///

@@ -1,12 +1,14 @@
+* Setup
+tempfile temp
+tempvar tframe
+frame create `tframe'
 
 **** 1) Merge police agency level data ****
 
 * Open backbone
 use DTA/backbone, clear
-unique fips ORI9 ORI7 stname agency
-assert r(N) == r(unique)
 expand 20														// 20 years, 4 qtr (2000-2019)
-bys fips ORI9 ORI7 stname agency: g year = 2000+_n-1
+bys id: g year = 2000+_n-1
 
 * Count crimes by census fips, merge later
 preserve
@@ -17,39 +19,18 @@ preserve
 restore
 
 * Merge Lemas
-tempfile temp
-forvalues y = 2013(3)2016{
-
-	if `y' == 2013{
-		local ORI = "ORI7"
-	}
-	else{
-		local ORI = "ORI9"
-	}
-
-	preserve
-		use DTA/LEMAS_`y', clear
-		drop if inlist(`ORI',"")
-		save `temp', replace
-	restore
-
-	merge m:1 `ORI' year using `temp', nogen 	update
-	
-	preserve
-		use DTA/LEMAS_`y', clear
-		drop if !inlist(`ORI',"")
-		save `temp', replace
-	restore
-
-	merge m:1 agency year using `temp', nogen 	update
-
+frame `tframe'{
+	use DTA/LEMAS_2013, clear
+	drop if inlist(ORI7,"")
+	save `temp', replace
 }
+merge m:1 ORI7 year using `temp', nogen keep(1 3)
 
 * Merge LEMAS body worn camera supplement
 expand 4
-bys fips ORI9 ORI7 stname agency year: g qtr = _n
+bys id year: g qtr = _n
 replace qtr = year*10 + qtr
-merge m:1 ORI9 qtr using DTA/LEMAS_body_cam, nogen 	update
+merge m:1 ORI9 qtr using DTA/LEMAS_body_cam, nogen keep(1 3)
 
 * Collapse into city-qtr means
 ds fips qtr agency ORI9 ORI7 agency_type stname city stnum stabb FINALWT, not
@@ -70,13 +51,21 @@ save `temp', replace
 use DTA/Population, clear
 merge m:1 fips qtr using `temp', nogen keep(1 3)
 
+*  Twitter
+frame `tframe'{
+	use DTA/Twitter, clear
+	gcollapse (rawsum) tweet_ct=sub_tweet_counts (mean) tweet_polarity = sub_polarity [aw=sub_twe], by(fips year) 
+	save `temp', replace
+}
+merge m:1 fips year using `temp', nogen keep(1 3)
+
 * Population Screen
-bys fips: egen dummy = min(popest)
+bys fips: gegen dummy = min(popest)
 drop if dummy<20000|popest==.
 drop dummy
 
 * Merge BLM Protets
-merge 1:1 fips qtr using DTA/Protests, nogen keep(1 3)
+merge 1:1 fips qtr using "DTA/protests", nogen keep(1 3)
 
 * Merge Fatal Encounters
 merge 1:1 fips qtr using DTA/Fatel_Encounters_Quarterly, nogen keep(1 3)
@@ -86,7 +75,7 @@ merge m:1 fips year using DTA/ACS_5yr, nogen keep(1 3)
 replace acs_black_pov = acs_black_pov*100
 foreach v in acs_hispanic acs_white acs_black{
 	g `v'_total = `v'
-	replace `v' = min(`v'_total / popestimate * 100, 100)
+	replace `v' = min(`v'_total / popestimate * 100, 100) if !inlist(`v'_total,.)
 }
 
 * Mapping Police Violence
@@ -113,14 +102,13 @@ foreach var in geo_housing geo_land{
 	drop `var'_10 `var'_00
 }
 
-
 **** 3) Define variables ****
 
-* Replace missing values with zeros for protests and killings
-foreach var of varlist  homicides* protests* h_* video{
+* Replace missing values with zeros for protests, killings, and tweets
+foreach var of varlist  homicides* protests* h_* video tweet* {
 	replace `var' = 0 if `var' == .
 }
-replace popnum =0 if protest==0
+replace participants =0 if protests==0
 
 * Define Treated
 bys fips: egen total_protests = sum(protests)
@@ -128,7 +116,7 @@ gen treated=(total_protests>=1)
 gen donor=(total_protests==0)
 
 * Define Treatment
-gen treatment = (protest>0)
+gen treatment = (protests>0)
 bys fips (qtr): replace treatment=treatment[_n-1] if treatment[_n-1] == 1
 
 * Per capita outcomes
@@ -152,18 +140,15 @@ gen geo_density_pop_land=popestimate/geo_land
 gen geo_density_house_land=geo_housing/geo_land
 
 * Coarsen Controls
-fastxtile  pop_c=popestimate, n(10) 
+fasterxtile  pop_c=popestimate, n(10) 
 foreach var of varlist acs_* crime* ag_officers ag_policing{
-	fastxtile `var'_c = `var', n(10)
+	fasterxtile `var'_c = `var', n(10)
 }
-
-* gen qtr of year FE
-cap drop season
-g season=qtr-year*10
 
 * Save Summary Data
 sort fips qtr
 aorder
 order fips stname city qtr treated treatment donor
+drop population strata id FINALWEIGHT											// unused variables
 compress
 save DTA/Summary, replace

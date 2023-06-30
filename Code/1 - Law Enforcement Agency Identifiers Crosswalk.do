@@ -5,7 +5,23 @@ cd "${user}\Data\Law Enforcement Agency Identifiers Crosswalk"
 unzipfile "ICPSR_35158-V2", replace
 use "ICPSR_35158/DS0001/35158-0001-Data", clear
 cd "${user}"
-	
+
+* Drop observations without FIPS code
+drop if inlist(FPLACE,99999)
+
+* Account for agencies with jurisdiction in mutliple census places
+g id =_n
+split COMMENT, parse("|")
+drop COMMENT
+greshape long COMMENT, i(id) j(dummy)
+drop if inlist(COMMENT,"") & dummy>1
+split COMMENT, parse("FPLACE")
+replace COMMENT2 = trim(COMMENT2)
+split COMMENT2, parse(" " ",") g(tet) limit(2)
+destring tet1, replace
+replace FPLACE = tet1 if inlist(FPLACE,99991)
+drop if inlist(FPLACE,.)
+
 * State name and code
 decode FSTATE, gen(stname)
 rename FIPS_ST stnum
@@ -30,6 +46,7 @@ decode AGCYTYPE, gen(agency_type)
 collapse (firstnm) stname stnum stabb city agency_type, by(fips agency ORI*)
 order fips agency ORI* agency_type stname city
 gsort fips agency ORI*
+g id=_n
 
 * Clean up and save										
 shell rmdir "Data/Law Enforcement Agency Identifiers Crosswalk/ICPSR_35158" /s /q

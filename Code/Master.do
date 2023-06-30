@@ -9,9 +9,9 @@ geo_		Geograpic controls
 pol_		Political party vote shares in 2008 election
 h_			Historical protests and hate crimes
 consent_	Consent decree indicators
+tweet_ 		Police related twitter data
 
 *******************************************************************************/
-
 
 * Set up
 clear all
@@ -19,124 +19,132 @@ clear matrix
 clear mata
 macro drop _all 
 set maxvar 20000
-global user = "C:/Users/travi/Dropbox/Police Killings"
+global user = "C:/Users/travi/Dropbox/BLM Lethal Force"
 cd "${user}"
 
-/* Create github datasets (github datasets must be split into pieces < 25 mb)
-do "Do Files/github datasets" 
-*/
-
 *******************************************************
-	// 1) Create Individual Datasets (run in order)
+ // 1) Create Individual Datasets (Last run: 8/12/2022)
 *******************************************************
 
-***** Agnecy level datasets ****
-/*
+/***** Agnecy level datasets ****
+
 * AGENCY BACKBONE - Law Enforcement Agency Identifiers Crosswalk
-do "Do Files/1 - Law Enforcement Agency Identifiers Crosswalk" 
+do "Do Files/1 - Law Enforcement Agency Identifiers Crosswalk" 					// Updated
 
 * Crime	
-do "Do Files/1 - Crime" 
+do "Do Files/1 - Crime"															// Updated
+
+* Twitter
+do "Do Files/1 - Twitter"														// Updated
 
 * Police agency characteristics
-do "Do Files/1 - LEMAS"
-do "Do Files/1 - LEMAS Body Worn Camera"
+do "Do Files/1 - LEMAS"															// Updated
+do "Do Files/1 - LEMAS Body Worn Camera"										// Updated
 
 ***** City level datasets ****
 
 * CITY BACKBONE - City population
-do "Do Files/1 - Population" 
+do "Do Files/1 - Population" 													// Updated
+
+* Black Lives Matter Protests
+do "Do Files/1 - Black Lives Matter Protests"									// Updated
 
 * City demogrpahics and labor market
-do "Do Files/1 - American Community Survey" 
+do "Do Files/1 - American Community Survey"										// Updated 
 
-* Number of police officers (94 geocodes)
-global key="a5459543a82b450d8bd78c45e2107fcc" 	// exires in one month. See https://opencagedata.com/dashboard
-do "Do Files/1 - Annuel Survey of Public Employment"
-
-* Black Lives Matter Protests (34 geocodes)
-global key="c87eafdd3d884f758ea0933f407fe229" 	// exires in one month. See https://opencagedata.com/dashboard
-do "Do Files/1 - Black Lives Matter Protests"
+* Number of police officers (Requires MapQuest API key)
+global key="" 		
+do "Do Files/1 - Annuel Survey of Public Employment"							// Updated
 
 * Police homicides
-do "Do Files/1 - Fatal Encounters City Geocode" 
+do "Do Files/1 - Fatal Encounters" 												// Updated
 
-* Police homicides (higher quality data, but smaller timeframe)  (8 geocodes)
-global key="c87eafdd3d884f758ea0933f407fe229" 	// exires in one month. See https://opencagedata.com/dashboard
-do "Do Files/1 - Mapping Police Violence" 
+* Police homicides (higher quality data, but smaller timeframe)
+do "Do Files/1 - Mapping Police Violence" 										// Updated
 
 * Census region and division by state
-do "Do Files/1 - Census Region" 
+do "Do Files/1 - Census Region" 												// Updated
 
 * City size and density	
-do "Do Files/1 - Geo Size"
+do "Do Files/1 - Geo Size"														// Updated
 
 * Number of historical protests and hate crimes in city (1025 geocode)
-global key="a5459543a82b450d8bd78c45e2107fcc" 	// exires in one month. See https://opencagedata.com/dashboard
+global key="" 	// exires in one month. See https://opencagedata.com/dashboard
 do "Do Files/1 - Protest History"
 
 * Democratic vote share
-global key1="04cfc001da6c48d1ad359f5851ac617f" 	// exires in one month. See https://opencagedata.com/dashboard
-global key2="6c5215ed09134c98bfbd4a828f171822" 	// exires in one month. See https://opencagedata.com/dashboard
-global key3="15e146fc5898447b91279961447215cf" 	// exires in one month. See https://opencagedata.com/dashboard
+global key1="" 	// exires in one month. See https://opencagedata.com/dashboard
+global key2="" 	// exires in one month. See https://opencagedata.com/dashboard
+global key3="" 	// exires in one month. See https://opencagedata.com/dashboard
 do "Do Files/1 - Democratic Vote Share" 		// requires crosswalk and opencage API
-
 
 *******************************************************
 	    // 2) Create final data set for analysis
 *******************************************************
 
-* 1) Create Summary Dataset
-do "Do Files/2 - Full Dataset" 
-do "Do Files/2 - Consent Decrees" 
-do "Do Files/2 - Agency panel body camera"  
-do "Do Files/2 - Agency panel characteristics"  
-do "Do Files/2 - Agency panel crime"  // "crime_share" constructed later, float storage > github 25mb
+* 1) Create main datasets
+do "Do Files/2 - Full Dataset" 											
+do "Do Files/2 - Consent Decrees" 										
+do "Do Files/2 - Agency panel body camera"  							
+do "Do Files/2 - Agency reasons body camera"  							
+do "Do Files/2 - Agency panel characteristics"  						
+do "Do Files/2 - Agency panel crime"  									
 
 * 2) Create appendix datasets
-do "Do Files/Appendix - County dataset.do"
-do "Do Files/Appendix - Case studies.do"
-do "Do Files/Appendix - Case study daily panel.do"
-do "Do Files/Appendix - Stacked Video Dataset.do"
+do "Do Files/Appendix - County dataset.do"									
+do "Do Files/Appendix - Case studies.do"									
+do "Do Files/Appendix - Twitter panel"  									
+do "Do Files/Appendix - Solidarity protest panel"  						
+
+* 3) Create stacked datasets
+global pre=5																	// Pretreatment years in e-window
+global post=5																	// Posttreatment years in e-window
+do "Do Files/3 - Stacked Dataset"												
+do "Do Files/3 - Contiguous counties"											
+do "Do Files/3 - Stacked counties"												
+forvalues c=100000(25000)200000{
+	winexec "C:\Program Files\Stata17\StataMP-64.exe" do "Do Files/3 - Low population stack" `c'
+}
+
 */
-
-* 3) Create Stacked Dataset <<<<(START REPLICATION EXERCISES HERE)>>>>
-do "Do Files/3 - Stacked Dataset"
-
-/* Alternatively, you can append the 4 pieces of the "stacked" dataset on github. 
-   However, noncrutial variables like state names etc. will not be included due 
-   to github file size restrictions. For all variable, use the above do file. */
-
-
 
 ********************************
 		// 3) Tables
 ********************************
 
-* Covariate Balance
-winexec "C:\Program Files\Stata16\StataMP-64.exe" do "Do Files/Tables - Covariate Balance.do"
+/*   <<<<(START REPLICATION EXERCISES HERE)>>>>		*/
 
-* Benchmark
-winexec "C:\Program Files\Stata16\StataMP-64.exe" texdoc do "Do Files/Tables - Benchmark"
+* Covariate Balance
+winexec "C:\Program Files\Stata17\StataMP-64.exe" do "Do Files/Tables - Covariate Balance.do"
 
 * Protest size and frequency
-winexec "C:\Program Files\Stata16\StataMP-64.exe" texdoc do "Do Files/Tables - Protests Size and Freq"
-
-* Normalization
-winexec "C:\Program Files\Stata16\StataMP-64.exe" texdoc do "Do Files/Tables - Normalization"
-
-* Population Screening
-winexec "C:\Program Files\Stata16\StataMP-64.exe" texdoc do "Do Files/Tables - Population Screen"
-
-* Specification
-winexec "C:\Program Files\Stata16\StataMP-64.exe" texdoc do "Do Files/Tables - Specification"
+winexec "C:\Program Files\Stata17\StataMP-64.exe" do "Do Files/Tables - Protests Size and Freq"
 
 * MPV Race
-winexec "C:\Program Files\Stata16\StataMP-64.exe" texdoc do "Do Files/Tables - Race"
+winexec "C:\Program Files\Stata17\StataMP-64.exe" do "Do Files/Tables - Race"
+
+* Estimator
+winexec "C:\Program Files\Stata17\StataMP-64.exe" do "Do Files/Tables - Estimator"
+
+* Normalization
+winexec "C:\Program Files\Stata17\StataMP-64.exe" do "Do Files/Tables - Normalization"
+
+* Population Screening
+winexec "C:\Program Files\Stata17\StataMP-64.exe" do "Do Files/Tables - Population Screen"
+
+* Specification
+winexec "C:\Program Files\Stata17\StataMP-64.exe" do "Do Files/Tables - Specification"
 
 * Mechanisms
-winexec "C:\Program Files\Stata16\StataMP-64.exe" texdoc do "Do Files/Tables - Mechanisms agency"
-winexec "C:\Program Files\Stata16\StataMP-64.exe" texdoc do "Do Files/Tables - Mechanisms crime"
+winexec "C:\Program Files\Stata17\StataMP-64.exe" do "Do Files/Tables - Mechanisms agency"
+winexec "C:\Program Files\Stata17\StataMP-64.exe" do "Do Files/Tables - Mechanisms crime"
+
+* Scaling protest
+winexec "C:\Program Files\Stata17\StataMP-64.exe" do "Do Files/Tables - Cumulative protests"
+
+* Twitter
+winexec "C:\Program Files\Stata17\StataMP-64.exe" do "Do Files/Appendix - Twitter table.do"
+
 
 ********************************
 		// 4) Figures
@@ -145,173 +153,163 @@ winexec "C:\Program Files\Stata16\StataMP-64.exe" texdoc do "Do Files/Tables - M
 * Maps
 do "Do Files/Figures - Maps.do"
 
-* Raw Bin Scatters
+* Bin Scatters
 do "Do Files/Figures - Binscatters.do"
 
 * Time variation
 do "Do Files/Figures - Timing.do"
 
-* Mechanisms figure
-do "Do Files/Figures - Mechanisms.do"
-
-* Figure 1
-global outcome = "protests_total"
-global absorb = "i.event#i.time i.event#i.FIPS"
-global weight = ""
+* Figure - Cumulative number of protests
+global absorb = "event#time event#fips"
 global color = "blue"
 global y = "Protests"
-global yaxis = "ylabel(0(3)12)"
-global pos = 1
-global title1 = "Cumulative number of protests"
-global title2 = ""
-global path=""
-do "Do Files/Figures - Event Time Effects.do"
+global yaxis = "ylabel(0(2)12, labsize(large))"
+global pos = 11
+global title = "Cumulative number of protests"
+do "Do Files/Figures - Cumulative protests.do"
 
-* Figure - ferguson effect
+* Figure - Ferguson effect
 global color1 = "red"
 global color2 = "blue"
 global color3 = "green"
-global yaxis = "ylabel(-.5(.25).5) ymtick(-.5(.05).5) ysc(titlegap(-5))"
-global pos = 1
+global yaxis = "ylabel(-50(10)40, labsize(large)) ymtick(-50(5)40) ysc(titlegap(-5))"
 global title1 = "" 
 global title2 = ""
 global path=""
 global cutoff = "19"
 global aspect = ".5"
-global gap = "-10"			// distance from x axis to top
+global gap = "-10"	
+global pos = 5
 do "Do Files/Figures - Ferguson Effect 1.do"
+global pos = 1
 do "Do Files/Figures - Ferguson Effect 2.do"
 
 * Figure - Body cameras
 global outcome = "ag_bodycam"
-global absorb = "event#time event#ori9 event#pop_c##c.ucr_population"
+global absorb = "event#time event#ori9 event#pop_c##c.popu"
 global color = "edkblue"
 global y = "% {&Delta} Body cameras"
-global yaxis = "ylabel(-.5(.25)1.25) ymtick(-.5(.05)1.25) ysc(titlegap(-5))"
-global pos = 5
-global title1 = "" 
+global yaxis = "ylabel(-50(25)150, labsize(large)) ymtick(-50(5)150) ysc(titlegap())"
+global pos = 11
+global title1 = "% {&Delta} Agencies with police body cameras" 
 global title2 = ""
-global path=""
 do "Do Files/Figures - Body cam.do"
+
+* Figure - Reasons for body cam
 do "Do Files/Figures - Reason for body camera.do"
+
+* Figure - Impact of BLM on police homicides 
+global outcome = "homicides"
+global absorb = "event#time event#fips event#pop_c##c.popestimate"
+global weight = "[aw=_wt_unit]"
+global color = "midblue"
+global y = "% {&Delta} Lethal Force"
+global yaxis = "ylabel(-45(15)30, labsize(large)) ymtick(-45(5)30) ysc(titlegap())"
+global pos = 1
+global title = "% {&Delta} Lethal force by police" 
+global path="estudy_homicides"
+global sample="Stacked"
+do "Do Files/Figures - Event Time Effects.do"
+
+	
+********************************
+	 // 5) Appendix B - D
+********************************
 
 * Figure - Videos of police homicides
 global outcome = "video"
-global absorb = "i.event#i.time i.event#i.FIPS event#pop_c##c.popestimate"
+global absorb = "event#time event#fips event#pop_c##c.popestimate"
 global weight = ""
-global color = "edkblue"
-global y = "% {&Delta} Lethal Force Videos"
-global yaxis = "ylabel(-1(1)6) ymtick(-1(.5)6) ysc(titlegap(-5))"
+global color = "red"
+global y = "% {&Delta} Videos"
+global yaxis = "ylabel(-200(100)600, labsize(large)) ymtick(-200(50)600) ysc(titlegap())"
 global pos = 11
-global title1 = "" 
-global title2 = ""
-global path=""
+global title = `"% {&Delta} Video recordings of lethal force" "by police"'
+global path="estudy_video"
+global sample="Stacked"
 do "Do Files/Figures - Event Time Effects.do"
 
-* Figure 1 - Impact of BLM on Police Homicides
+* Figure - Condition on police killing before protest
+global color = "dkgreen"
+global y = "% {&Delta} Lethal Force"
+global yaxis = "ylabel(-45(15)30, labsize(large)) ymtick(-45(5)30) ysc(titlegap())"
+global pos = 1
+global title = "% {&Delta} Lethal force by police" 
+do "Do Files/Figures - Event study conditional on killing"
 
-	* Figure 1-1 
-	global outcome = "homicides"
-	global absorb = "i.event#i.time i.event#i.FIPS event#pop_c##c.popestimate"
-	global weight = ""
-	global color = "green"
-	global y = "% {&Delta} Lethal Force"
-	global yaxis = "ylabel(-.75(.25).5) ymtick(-.75(.05).5) ysc(titlegap(-5))"
-	global pos = 1
-	global title1 = "" 
-	global title2 = ""
-	global path=""
-	do "Do Files/Figures - Event Time Effects.do"
+* Figure - Binary outcome
+global color = "purple"
+global y = "Overall effect"
+global yaxis = "ylabel(-12(3)6, labsize(large)) ymtick(-12(3)6) ysc(titlegap())"
+global pos = 1
+global title = "Percentage point change in any lethal force" 
+do "Do Files/Figures - Event study binary outcome.do"
 
-	* Figure 1-2
-	global outcome = "homicides_p"
-	global absorb = "i.event#i.time i.event#i.FIPS event#pop_c##c.popestimate"
-	global weight = "popestimate"
-	global color = "midblue"
-	global y = "% {&Delta} Lethal Force"
-	global yaxis = "ylabel(-.75(.25).5) ymtick(-.75(.05).5) ysc(titlegap(-5))"
-	global pos = 1
-	global title1 = "" 
-	global title2 = ""
-	global path=""
-	do "Do Files/Figures - Event Time Effects.do"
-	
-	* Figure 1-3
-	global outcome = "homicides"
-	global absorb = "i.event#i.time i.event#i.FIPS event#pop_c##c.popestimate"
-	global weight = "ipw"
-	global color = "pink"
-	global y = "% {&Delta} Lethal Force"
-	global yaxis = "ylabel(-.75(.25).5) ymtick(-.75(.05).5) ysc(titlegap(-5))"
-	global pos = 1
-	global title1 = "" 
-	global title2 = ""
-	global path=""
-	do "Do Files/Figures - Event Time Effects.do"
-	
-	* Figure 1-4
-	global outcome = "homicides"
-	global absorb = "i.event#i.time i.event#i.FIPS event#pop_c##c.popestimate"
-	global weight = "ipw_unit_time"
-	global color = "orange_red"
-	global y = "% {&Delta} Lethal Force"
-	global yaxis = "ylabel(-.75(.25).5) ymtick(-.75(.05).5) ysc(titlegap(-5))"
-	global pos = 1
-	global title1 = "" 
-	global title2 = ""
-	do "Do Files/Figures - Event Time Effects.do"
-	
-* Figure 2 - Robustness Check Benchmark - time trends
+* Figure - LEMAS sample
+global color = "blue"
+global y = "% {&Delta} Lethal Force"
+global yaxis = "ylabel(-45(15)30, labsize(large)) ymtick(-45(5)30) ysc(titlegap())"
+global pos = 1
+global title = "% {&Delta} Lethal force by police" 
+do "Do Files/Figures - LEMAS body cam sample.do"
 
-	* Figure 2-2
-	global outcome = "homicides"
-	global absorb = "i.event#i.time#i.pop_c i.event#i.FIPS i.event#i.pop_c#c.popestimate"
-	global weight = ""
-	global color = "midblue"
-	global y = "% {&Delta} Lethal Force"
-	global yaxis = "ylabel(-.75(.25).5) ymtick(-.75(.05).5) ysc(titlegap(-5))"
-	global pos = 1
-	global title1 = "" 
-	global title2 = ""
-	global path="_pop_time"
-	do "Do Files/Figures - Event Time Effects.do"
-	
-	* Figure 2-3
-	global outcome = "homicides"
-	global absorb = "i.event#i.time event#FIPS##c.time event#pop_c##c.popestimate"
-	global weight = ""
-	global color = "pink"
-	global y = "% {&Delta} Lethal Force"
-	global yaxis = "ylabel(-.75(.25).5) ymtick(-.75(.05).5) ysc(titlegap(-5))"
-	global pos = 1
-	global title1 = "" 
-	global title2 = ""
-	global path="_linear"
-	do "Do Files/Figures - Event Time Effects.do"
-	
-	* Figure 2-4
-	global outcome = "homicides"
-	global absorb = "i.event#i.time#i.pop_c event#FIPS##c.time i.event#i.pop_c#c.popestimate"
-	global weight = ""
-	global color = "orange_red"
-	global y = "% {&Delta} Lethal Force"
-	global yaxis = "ylabel(-.75(.25).5) ymtick(-.75(.05).5) ysc(titlegap(-5))"
-	global pos = 1
-	global title1 = "" 
-	global title2 = ""
-	global path="_pop_time_linear"
-	do "Do Files/Figures - Event Time Effects.do"
-	
-********************************
-	   // 5) Appendix
-********************************
+* Low population cities - Covariate balance
+winexec "C:\Program Files\Stata17\StataMP-64.exe" do "Do Files/Appendix - Low Pop Covariate Balance.do"
 
-* County level panel appendix
-do "Do Files/Appendix - County figures.do"
+* Low population cities - Robustness to threshold
+winexec "C:\Program Files\Stata17\StataMP-64.exe" do "Do Files/Appendix - Low Pop Threshold.do"
 
-* Case study appendix
-do "Do Files/Appendix - Case study heterogeneity figure.do"
+* Low population cities - Dynamic treatment effect plot
+global outcome = "homicides"
+global absorb = "event#time event#fips event#pop_c##c.popestimate"
+global weight = "[aw=ipw]"
+global color = "midblue"
+global y = "% {&Delta} Lethal Force"
+global yaxis = "ylabel(-100(25)100, labsize(large)) ymtick(-100(12.5)100) ysc(titlegap())"
+global pos = 1
+global title = "% {&Delta} Lethal force by police" 
+global path="estudy_low_pop"
+global sample="stacked_pop_150000"
+do "Do Files/Figures - Event Time Effects.do"
 
-* Video event study appendix
-do "Do Files/Appendix - Video event time figures.do"
-do "Do Files/Appendix - Video overall figures.do"
+* Counties - Contiguous county map
+do "Do Files/Appendix - County maps.do"
+
+* Counties - Event study plot (synth)
+global outcome = "homicides"
+global absorb = "event#time event#fips event#pop_c##c.popestimate"
+global weight = "[aw=_wt_unit]"
+global color = "midblue"
+global y = "% {&Delta} Lethal Force"
+global yaxis = "ylabel(-45(15)30, labsize(large)) ymtick(-45(5)30) ysc(titlegap())"
+global pos = 1
+global title = "% {&Delta} Lethal force by police" 
+global path="estudy_counties"
+global sample="Stacked_counties"
+do "Do Files/Figures - Event Time Effects.do"
+
+* Counties - Event study plot (contiguous)
+global outcome = "homicides"
+global absorb = "pair#time pair#fips pop_c#c.popestimate"
+global weight = ""
+global color = "orange_red"
+global y = "% {&Delta} Lethal Force"
+global yaxis = "ylabel(-45(15)30, labsize(large)) ymtick(-45(5)30) ysc(titlegap())"
+global pos = 1
+global title = "% {&Delta} Lethal force by police" 
+global path="estudy_contiguous"
+global sample="contiguous_counties"
+do "Do Files/Figures - Event Time Effects.do" "contiguous"
+
+* Solidarity protests
+global outcome = "homicides"
+global absorb = "event#time event#fips event#pop_c##c.popestimate"
+global weight = "[aw=_wt_unit]"
+global color = "midblue"
+global y = "% {&Delta} Lethal Force"
+global yaxis = "ylabel(-45(15)30, labsize(large)) ymtick(-45(5)30) ysc(titlegap())"
+global pos = 1
+global title = "% {&Delta} Lethal force by police" 
+global path="estudy_solidarity"
+global sample="Solidarity"
+do "Do Files/Figures - Event Time Effects.do"

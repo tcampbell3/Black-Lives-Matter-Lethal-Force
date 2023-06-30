@@ -48,11 +48,11 @@ while `true' < 1{
 				using "Data/Annual Survey of Public Employment/Employment/`j'empst.txt", clear
 		}
 		* generate wage - Total pay over total hours, assuming full time cops work 40 hours a week. 
-		gen ag_wage = (full_time_pay + part_time_pay)/(full_time_emp*40*(31/7) + part_time_hours) // payroll is over march, 31 days
+		gen ag_wage = (full_time_pay)/(full_time_emp*40*(31/7)) // payroll is over march, 31 days
 		label var ag_wage "Average Police Wage"
 
 		* number of cops
-		rename full_time_eq ag_officers
+		rename full_time_emp ag_officers
 		label var ag_officers "Number of full time police"
 
 		* keep police officers only
@@ -98,8 +98,8 @@ while `true' < 1{
 
 	}
 }
-	
-	
+
+
 	
 ****   Fix FIPS   ****
 
@@ -116,7 +116,7 @@ replace corrected = string(FIPS, "%05.0f") if stnum == "15"
 replace fips= corrected
 
 * Remove some duplicate observations and deal with places that report different obs for same year
-duplicates drop
+gduplicates drop
 collapse (first) fips (sum) ag_officers (mean) ag_wage [aw=ag_officers], by(stnum city year)
 order fips
 
@@ -125,14 +125,23 @@ order fips
 
 * fix typos
 replace city="Foxborough" if city=="Foxboro"
+replace city="La Fayette" if city=="Lafayette"
+replace city="Washington" if city=="District of Columbia"
 replace city="New York" if city=="Bronx"|city=="Brooklyn"|city=="Manhattan"|city=="New York City"|city=="Staten Island"|city=="Staten Island New York"
 replace city = subinstr(city, " (Wendover)", "",.)	
 replace city = subinstr(city, "/", "-",.)
-replace city = subinstr(city, ",", "-",.)
+replace city = subinstr(city, ",", "-",.) 
+replace city = subinstr(city, "Mt ", "Mt. ",.) 
+replace city = subinstr(city, "St ", "St. ",.) 
 drop if stnum==""|city==""
 	
 * merge missing fips
-merge m:1 stnum city using DTA/fips , keep(1 3 4 5) nogen update
+preserve
+	use DTA/fips, clear
+	replace city=proper(city)
+	save `temp',replace
+restore
+merge m:1 stnum city using `temp', keep(1 3 4 5) nogen update
 
 * merge state abbriviations
 merge m:1 stnum using DTA/statecode, nogen keep(1 3 4 5) update
@@ -149,20 +158,14 @@ keep if fips==""
 preserve
 	keep city stabb
 	duplicates drop
-	gen country="United States of America"
-	opencagegeo, key(${key}) city(city) state(stabb) country(country) // 2,5000 max calls per 24 hours
-	destring g_lat, gen(Latitude)
-	destring g_lon, gen(Longitude)
+	geocodeopen, key(${key}) city(city) state(stabb)
 	save `temp', replace
 restore
 merge m:1 stabb city using `temp' , keep(1 3) nogen
 
-* keep accurate data
-drop if g_quality<4 // data not accurate at city level or less
-
-* keep precise data (within approx 12.5 miles)
-destring g_confidence, replace
-drop if g_confidence<3 // precision below 20km
+* keep high enough quality
+keep if inlist(geo_quality,"CITY")
+drop geo_*
 
 * Reverse Geocode
 cd Data/Geography/2018
@@ -172,7 +175,7 @@ forvalues i = 1/78{
 	if _rc == 0{
 	sleep 1000
 	shp2dta using "tl_2018_`j'_place/tl_2018_`j'_place.shp" ,data("cb_data.dta") coor("cb_coor.dta") genid(cid) gencentroids(cent) replace
-	geoinpoly Latitude Longitude using "cb_coor.dta"
+	geoinpoly latitude longitude using "cb_coor.dta"
 	cap drop cid
 	rename _ID cid
 	merge m:1 cid using "cb_data.dta", nogen keep(1 3)
@@ -182,7 +185,6 @@ forvalues i = 1/78{
 }
 cd ../../..
 keep if fips !=""
-
 
 * Save Final Dataset
 append using `success'

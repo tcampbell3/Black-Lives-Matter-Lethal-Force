@@ -4,47 +4,36 @@ tempfile temp
 
 ********* Mapping Police Violence ***********
 
-import excel "Data\Police Killings\MPVDatasetDownload.xlsx", firstrow clear case(lower)
-
-* merge FE longitude and latitude
-merge m:1 fatalencountersid using "DTA/fatal_encounters_geocode", keep(1 3) nogen
+import delimited "C:\Users\travi\Dropbox\BLM Lethal Force\Data\Police Killings\Mapping Police Violence.csv", delimiter(comma) encoding(UTF-8) clear   bindquote(strict)
 
 * Rename variables
-foreach var in age name gender race{
-	rename victims`var' `var'
-}
 rename state stabb
-rename dateofin date
 rename street street
 rename agency agency
-rename oria ORI9
-g video= !inlist(trim(bodycam),"No") if !inlist(bodycam,"")
+rename ori ORI9
+rename latitude Latitude
+rename longitude Longitude
+rename cause_of_death causeofdeath
+rename allegedly_armed unarmed
+g video= !inlist(trim(wapo_body_camera),"No") if !inlist(wapo_body_camera,"")
 
 * Date
-gen year=year(date)
-gen month=month(date)
-gen day=day(date)
-drop if year>2019
+split date, parse("/")
+destring date3, g(year)
+destring date2, g(day)
+destring date1, g(month)
+drop if year>2021
 
 * keep what is used
-keep age name gender race city stabb zipcode county street agency causeofdeath unarmed year month day Lat Long ORI9 video
-drop if name==""
+keep age name gender race city stabb agency causeofdeath unarmed year month day Lat Long ORI9 video
 
 * Relabel certain causes of death (so FE data match up since these typically are not from police homicides)
 replace cause=proper(cause)
-split cause, parse("/" ",")
-ds cause*
-local vars `r(varlist)'
-local omit causeofdeath1
-local want : list vars - omit 
-drop `want'
-rename causeofdeath1 causeofdeath
-replace cause= "Other" if inlist(cause,"Drug Overdose","Drowned","Fall To Death","Undetermined","Unknown","Bomb", "Death In Custody","Hanging")
-
-* Relabel & verify only correct causes kept
-replace cause="Asphyxiated" if cause=="Physical Restraint"
-replace cause="Beaten" if inlist(cause,"Baton","Bean Bag","Beanbag Gun", "Beating")
-replace cause="Taser" if cause=="Tasered"
+replace cause = "Asphyxiation" if inlist(cause,"Asphyxiated","Physical Restraint","Taser,Beaten,Asphyxiated","Taser,Physical Restraint","Taser,Beaten,Asphyxiated","Taser,Physical Restraint")
+replace cause= "Beaten/Bludgeoned" if inlist(cause,"Bean Bag", "Beaten")
+replace cause = "Chemical Agent/Pepper Spray" if inlist(cause, "Pepper Spray", "Chemical Agent")
+replace cause = "Gunshot" if inlist(cause,"Gunshot,Taser","Gunshot,Vehicle")
+replace cause= "Other" if inlist(cause,"Bomb", "Death In Custody","Hanging")
 
 
 ********* Pie Graph All Cases***********
@@ -62,8 +51,8 @@ graph pie if year>=2013 ,over(causeofdeath)  legend(size(small)) scheme(plotplai
 legend(subtitle("N = `output'",position(11))) ///
 pie(1,  color(olive_teal)) ///
 pie(2, color(green)) ///
-pie(3, color(red%75)) plabel(3 percent, size(*1.5) color(white)) plabel(3 name, size(*1.5) color(white) gap(-7cm)) ///
-pie(4, color(orange)) ///
+pie(4, color(red%75)) plabel(4 percent, size(*1.5) color(white)) plabel(4 name, size(*1.5) color(white) gap(-7cm)) ///
+pie(3, color(orange)) ///
 pie(5,  color(teal)) ///
 pie(6, color(purple)) ///
 pie(7, color(midblue))
@@ -75,7 +64,6 @@ preserve
 
 	* Relabel & verify only correct causes kept
 	drop if cause=="Other"|cause=="Vehicle"
-	keep if inlist(cause,"Asphyxiated","Beaten","Pepper Spray","Gunshot","Taser")
 
 	* save total fatal encounters
 	tempname scs
@@ -90,11 +78,29 @@ preserve
 	legend(subtitle("N = `output'",position(11))) ///
 	pie(1,  color(olive_teal)) ///
 	pie(2, color(green)) ///
-	pie(3, color(red%75)) plabel(3 percent, size(*1.5) color(white)) plabel(3 name, size(*1.5) color(white) gap(-7cm)) ///
-	pie(4, color(teal)) ///
+	pie(4, color(red%75)) plabel(4 percent, size(*1.5) color(white)) plabel(4 name, size(*1.5) color(white) gap(-7cm)) ///
+	pie(3, color(teal)) ///
 	pie(5,  color(purple)) 
 	graph export "Output/piegraph_mapping_police.pdf", replace
 	
+restore
+
+************* Monthly police killings by agency *******************
+
+preserve
+	g dummy = mdy(month,day,year)
+	g date=mofd(dummy)
+	format date %tm
+	keep date ORI9
+	split ORI9, p(;)
+	drop ORI9
+	g i=_n
+	greshape long ORI9, i(i)
+	drop if inlist(ORI9,"") |strlen(ORI9)!=9
+	g homicides=1
+	gcollapse (sum) homicides, by(ORI9 date)
+	gsort ORI9 date
+	save DTA/agency_monthly_homicides,replace
 restore
 
 ************* PLACE FIPS *******************
@@ -108,38 +114,7 @@ preserve
 	tempfile success
 	save `success', replace
 restore
-
-* Save failures that are geocoded
-keep if fips==""
-drop if city == "" | stabb == ""
-preserve
-	keep if Longitude!=.
-	tempfile geocode
-	save `geocode', replace
-restore
-
-* Forward Geocode unmatched
-keep if Longitude==.
-preserve
-	keep city stabb
-	duplicates drop
-	gen country="United States of America"
-	opencagegeo, key(${key}) city(city) state(stabb) country(country) // 2,500 max calls per 24 hours
-	destring g_lat, gen(Latitude)
-	destring g_lon, gen(Longitude)
-	save `temp', replace
-restore
-merge m:1 stabb city using `temp' , keep(1 3) nogen update
-	
-* keep accurate data
-drop if g_quality<4 // data not accurate at city level or less
-
-* keep precise data (within approx 12.5 miles)
-destring g_confidence, replace
-drop if g_confidence<3 // precision below 20km
-
-* Append geocoded failures from above
-append using `geocode'
+keep if inlist(fips,"")
 
 * geocode place fips with long and lat
 cd Data/Geography/2018
@@ -174,20 +149,14 @@ save "DTA/Mapping_Police_Geo", replace
 ********* Daily and Quarterly Files ***********
 
 * Outcomes
-destring age, replace force
 g homicides_mpv = 1
-g homicides_black_mpv =(race=="African-American/Black"|race=="Black")
-g homicides_white_mpv =(race=="European-American/White"|race=="European-American/White"|race=="White")
-g homicides_other_race_mpv =(race!="Unknown Race"|race!="Unknown race"|race != "Race unspecified")
-replace homicides_other_race_mpv = 0 if homicides_white == 1 | homicides_black == 1
-g homicides_female_mpv =(gender=="Female"|gender=="Femalr")
-g homicides_male_mpv =(gender=="Male")
-g homicides_armed_mpv = (unarmed=="Allegedly Armed")
-g homicides_unarmed_mpv = (unarmed=="Unarmed")
-g homicides_black_male_mpv =(gender=="Male"&race=="African-American/Black"|race=="Black"&gender=="Male")
-g homicides_young_black_male_mpv =(gender=="Male"&race=="African-American/Black"&age<35|gender=="Male"&race=="Black"&age<35)
-g homicides_young_male_mpv =(gender=="Male"&age<35)
-g homicides_gun_mpv = (causeofdeath=="Gunshot")
+g homicides_black_mpv =(race=="Black")
+g homicides_white_mpv =(race=="White")
+g homicides_other_race_mpv =(race!="White"&race!="Black") if !inlist(race,"Unknown race","")
+g homicides_female_mpv =(gender=="Female")  if !inlist(gender,"Unknown","Transgender","")
+g homicides_male_mpv =(gender=="Male") if !inlist(gender,"Unknown","Transgender","")
+g homicides_armed_mpv = (unarmed=="Allegedly Armed") if !inlist(unarmed,"Unclear","")
+g homicides_unarmed_mpv = (unarmed=="Unarmed/Did Not Have Actual Weapon") if !inlist(unarmed,"Unclear","")
 
 * save daily file
 drop if fips==""

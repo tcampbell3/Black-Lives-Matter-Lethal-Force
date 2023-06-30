@@ -1,220 +1,194 @@
-
-* Round
-cap program drop _round
-program _round, rclass
-	syntax [, number(real 50)]
-	di `number'
-	if abs(`number')>=100{
-		local rounded = trim("`: display %10.0fc `number''")
-	}
-	if abs(`number')<100{
-		local rounded = trim("`: display %10.1fc `number''")
-	}
-	if abs(`number')<10{
-		local rounded = trim("`: display %10.2fc `number''")
-	}	
-	if abs(`number')<1{
-		local rounded = trim("`: display %10.3fc `number''")
-	}
-	return local rounded="`rounded'"
-end
-	
+clear all
 * Loop over number of columns
 forvalues c = 1/7{
 	
-	* col number
-	local firstrow = "`firstrow' & (`c')"
-	
-	* specification
+	* Specification
+	use "DTA/Agency_panel_crime", clear
 	if `c' == 1{
-	
-		use "DTA/Agency_panel_crime", clear
-		local Time = "`Time' & Annual"
-		local Years = "`Years' & 2000-2019"
 		local outcome = "crime_murder_rpt"
-		local Outcome = "`Outcome' & Total murders"
-		local weight = ""
-		local benchmark_row = "`benchmark_row'& None"
-		local absorb = "event#time event#unit event#pop_c##c.ucr_population"
-		local Bench = "`Bench' & 1 "	
-		local dataset="crime"
-		
+		local Outcome = "Total murders"		
 	}
 	if `c' == 2 {
-	
-		use "DTA/Agency_panel_crime", clear
-		local Time = "`Time' & Annual"
-		local Years = "`Years' & 2000-2019"
 		local outcome = "crime_violent_rpt"
-		local Outcome = "`Outcome' & Total violent crimes"
-		local weight = ""
-		local benchmark_row = "`benchmark_row'& None"
-		local absorb = "event#time event#unit event#pop_c##c.ucr_population"
-		local Bench = "`Bench' & 1 "	
-		local dataset="crime"
-		
+		local Outcome = "Total violent crimes"	
 	}
 	if `c' == 3 {
-	
-		use "DTA/Agency_panel_crime", clear
-		local Time = "`Time' & Annual"
-		local Years = "`Years' & 2000-2019"
 		local outcome = "crime_violent_clr"
-		local Outcome = "`Outcome' & Cleared violent crimes"
-		local weight = ""
-		local benchmark_row = "`benchmark_row'& None"
-		local absorb = "event#time event#unit event#pop_c##c.ucr_population"
-		local Bench = "`Bench' & 1 "	
-		local dataset="crime"
-		
+		local Outcome = "Cleared violent crimes"
 	}
 	if `c' == 4 {
-	
-		use "DTA/Agency_panel_crime", clear
-		local Time = "`Time' & Annual"
-		local Years = "`Years' & 2000-2019"
 		local outcome = "crime_property_rpt"
-		local Outcome = "`Outcome' & Total property crimes"
-		local weight = ""
-		local benchmark_row = "`benchmark_row'& None"
-		local absorb = "event#time event#unit event#pop_c##c.ucr_population"
-		local Bench = "`Bench' & 1 "	
-		local dataset="crime"
-		
+		local Outcome = "Total property crimes"
 	}
 	if `c' == 5{
-	
-		use "DTA/Agency_panel_crime", clear
-		local Time = "`Time' & Annual"
-		local Years = "`Years' & 2000-2019"
 		local outcome = "crime_property_clr"
-		local Outcome = "`Outcome' & Cleared property crimes"
-		local weight = ""
-		local benchmark_row = "`benchmark_row'& None"
-		local absorb = "event#time event#unit event#pop_c##c.ucr_population"
-		local Bench = "`Bench' & 1 "	
-		local dataset="crime"
-		
+		local Outcome = "Cleared property crimes"
 	}
 	if `c' == 6{
-	
-		use "DTA/Agency_panel_crime", clear
-		g crime_share = crime_property_clr/crime_property_rpt
-		local Time = "`Time' & Annual"
-		local Years = "`Years' & 2000-2019"
 		local outcome = "crime_share"
-		local Outcome = "`Outcome' & Share of property crimes cleared"
-		local weight = ""
-		local benchmark_row = "`benchmark_row'& None"
-		local absorb = "event#time event#unit event#pop_c##c.ucr_population"
-		local Bench = "`Bench' & 1 "	
-		local dataset="crime"
-		
+		local Outcome = "Share of property crimes cleared"
 	}
 	if `c' == 7 {
-	
-		use "DTA/Agency_panel_crime", clear
-		local Time = "`Time' & Annual"
-		local Years = "`Years' & 2000-2019"
 		local outcome = "crime_officer_assaulted"
-		local Outcome = "`Outcome' & Officer assaults"
-		local weight = ""
-		local benchmark_row = "`benchmark_row'& None"
-		local absorb = "event#time event#unit event#pop_c##c.ucr_population"
-		local Bench = "`Bench' & 1 "	
-		local dataset="crime"
-		
+		local Outcome = "Officer assaults"
+	}	
+
+	* Pretreatment mean
+	sum `outcome' if inlist(time,-1) & treated==1, meanonly
+	local b=r(mean)	
+	
+	* Estimate without population controls
+	reghdfe `outcome' treatment [aw=_unit_`outcome'], cluster(unit) a(event#unit event#time)
+	eststo est`c'
+	
+	* Store regression results
+	lincom treatment/`b'*100
+	local beta: di %10.2fc round(r(estimate),.01)	
+	local beta = trim("`beta'")
+	local se: di %10.2fc round(r(se),.01)	
+	local se = trim("`se'")
+	
+	* Exposed time-units
+	cap drop _dummy
+	gegen _dummy = group(time unit) if inlist(treatment,1)
+	sum _dummy, meanonly
+	local e: di %10.3gc round(r(max),.001)	
+	local e = r(max)
+	
+	* Total Prevented
+	if "`outcome'"!="crime_share"{
+		lincom treatment*`e'
+		local beta2: di %10.0fc round(r(estimate))	
+		local beta2 = trim("`beta2'")
+		local se2: di %10.1gc round(r(se),.1)	
+		local se2 = trim("`se2'")
+	}
+	
+	* Add estimates to ereturn
+	estadd local total_exposed = "`e'"	
+	estadd local overall_beta1 = "`beta'"
+	estadd local overall_se1 = "(`se')"	
+	if "`outcome'"!="crime_share"{
+		estadd local prevented_beta1 = "`beta2'"
+		estadd local prevented_se1 = "(`se2')"
+	}
+	
+	* Estimate with population controls
+	reghdfe `outcome' treatment [aw=_unit_`outcome'], cluster(unit) a(event#unit event#time event#pop_c##c.popu)
+	
+	* Store regression results
+	lincom treatment/`b'*100
+	local beta: di %10.2fc round(r(estimate),.01)	
+	local beta = trim("`beta'")
+	local se: di %10.2fc round(r(se),.01)	
+	local se = trim("`se'")
+	
+	* Exposed time-units
+	cap drop _dummy
+	gegen _dummy = group(time unit) if inlist(treatment,1)
+	sum _dummy, meanonly
+	local e: di %10.3gc round(r(max),.001)	
+	local e = r(max)
+	
+	* Total Prevented
+	if "`outcome'"!="crime_share"{
+		lincom treatment*`e'
+		local beta2: di %10.0fc round(r(estimate))	
+		local beta2 = trim("`beta2'")
+		local se2: di %10.1gc round(r(se),.1)	
+		local se2 = trim("`se2'")
+	}
+	
+	* Add estimates to ereturn
+	est restore est`c'
+	estadd local overall_beta2 = "`beta'"
+	estadd local overall_se2 = "(`se')"	
+	if "`outcome'"!="crime_share"{
+		estadd local prevented_beta2 = "`beta2'"
+		estadd local prevented_se2 = "(`se2')"
 	}	
 	
-	* Find pretreatment mean
-	sum `outcome' `weight' if time<0 & time>=-1 & treated==1, meanonly
-	local b=r(mean)
-	_round , number(`b')
-	local rounded = r(rounded)
-	local Mean = "`Mean' & `rounded' "
+	* Pretreatment mean
+	local pre: di %10.2gc round(`b',.01)	
+	estadd local pre = "`pre'"
 	
-	* Estimates	
-	if "`dataset'"=="2year"{
-		reghdfe `outcome' treatment `weight', cluster(unit) absorb(`absorb' )
-		di "TESTING AVERAGE TREATMENT"
-		lincom treatment/`b'
-	}
-	else{
-		reghdfe `outcome' t_1-t_9 `weight', cluster(unit) absorb(`absorb' )
-		di "TESTING AVERAGE TREATMENT"
-		lincom ((t_5+t_6+t_7+t_8+t_9)/5- (t_1+t_2+t_3+t_4)/4)/`b'
-	}
-	local est_overall = trim("`: display %10.3f r(estimate)'")
-	local post_ave = r(estimate)
-	local est_se =trim("`: display %10.3f r(se)'")
-	local b_ave = " `b_ave'& `est_overall'"
-	local se_ave =" `se_ave' & (`est_se')"
-
+	* Treated, control, cohorts
+	cap drop _samp
+	bys treated: gegen _samp=nunique(unit)
+	sum _samp if inlist(treated,1),meanonly
+	local treated: di %10.3gc round(r(mean),.001)	
+	estadd local tr = "`treated'"
+	sum _samp if inlist(treated,0),meanonly
+	local control: di %10.3gc round(r(mean),.001)	
+	estadd local co = "`control'"
+	sum event, meanonly
+	local cohorts: di %10.3gc round(r(max),.001)	
+	estadd local coh = "`cohorts'"
+	
 	* Sample Size
-	local n = trim("`: display %10.0fc e(N_full)'")
-	local N = "`N' & \small{`n'} "
+	local N: di %10.3gc round(e(N),.001)	
+	estadd local obs = "`N'"	
 	
-	* Treated
-	unique unit if treated==1	
-	local t = trim("`: display %10.0fc r(unique)'")
-	local treated = "`treated' & `t'"
-	
-	* Donor
-	unique unit if donor==1	
-	local d = trim("`: display %10.0fc r(unique)'")
-	local donor = "`donor' & `d'"
+	* Total crimes
+	gegen total_post_treated = sum(`outcome') if inlist(treatment,1)
+	sum total_post_treated, meanonly
+	local deaths: di %10.0fc round(r(mean))	
+	estadd local deaths = "`deaths'"	
 
 	* Total Protests
-	cap drop _total_protests
-	egen _total_protests = total(protests) 
-	sum _total_protests
-	local t2 = trim("`: display %10.0fc r(mean)'")
-	local _total_protests = "`_total_protests' & `t2'"
+	gegen _total_protests = sum(protests) 
+	sum _total_protests, meanonly
+	local protests: di %10.0fc round(r(mean))	
+	estadd local protests = "`protests'"	
 
 	* Total Participants
-	cap drop _total_partic
-	egen _total_partic = total(popnum)
-	sum _total_partic
-	local t3 = trim("`: display %10.0fc r(mean)'")
-	local _total_partic = "`_total_partic' & \small{`t3'}"
-
+	gegen _total_partic = total(participants)
+	sum _total_partic, meanonly
+	local participants: di %10.0fc round(r(mean))	
+	estadd local participants = "`participants'"		
+	
+	* Other info
+	estadd local coltitle = "`Outcome'"
+	estadd local Time = "Annual"
+	estadd local Years = "2000-2019"
+	estadd local blank = ""
 }
 
-
-
-
-
-*** Table ****
-
-* set up
-texdoc i "Output/mechanisms_crime", replace
-tex \begin{tabular}{l*{7}{P{2cm}}}
-tex \toprule[.05cm]
-tex `firstrow' \\
-tex \midrule
-tex Outcome `Outcome' \\
-tex \midrule
-
-* Average Effect
-tex Impact of protest (\%\$\Delta\$) `b_ave' \\
-tex  `se_ave'\\\\
-
-* Homicide Statistics
-tex Average outcome pre-protest (\footnotesize{$\widebar{\sfrac{Y}{N}}_{-1}$}) `Mean' \\
-tex Agencies with protests `treated' \\
-tex Agencies without protests `donor' \\
-tex Total number of protests `_total_protests' \\
-tex Total number of protesters `_total_partic' \\\\
-
-* Sample size and specification
-tex Sample size `N' \\
-tex Years `Years' \\
-tex Time unit `Time' \\
-/*tex
-\bottomrule[.03cm]
-\end{tabular}
-tex*/
-texdoc close
+* Save Table
+esttab est* using Output/mechanisms_crime.tex, 									///
+	stats(coltitle blank overall_beta1 overall_se1 prevented_beta1 prevented_se1	///
+		blank overall_beta2 overall_se2 prevented_beta2 prevented_se2 pre 		///
+		total_exposed deaths protests participants tr co coh obs Years Time,	///
+		fmt( %010.0gc )															///
+		label(																	///
+		"\midrule \textbf{Outcome:} "											///
+		"\midrule\addlinespace[0.3cm]\textit{No population control:}"			///
+		"\addlinespace[0.1cm]\$\%\Delta\text{Crimes}\$" 						///
+			" " 																///
+		"\addlinespace[0.1cm]\$\Delta\text{Total Crimes}\$" 					///
+			" " 																///
+		"\addlinespace[0.3cm]\textit{Flexible population control:}"				///
+		"\addlinespace[0.1cm]\$\%\Delta\text{Crimes}\$" 						///
+			" " 																///
+		"\addlinespace[0.1cm]\$\Delta\text{Total Crimes}\$" 					///
+			" " 																///
+		"\addlinespace[0.1cm] \midrule Average outcome pre-protest"				/// 
+		"\addlinespace[0.1cm]Total place-years after protest"					/// 		
+		"\addlinespace[0.1cm]Total crimes post-protest"							/// 
+		"\addlinespace[0.1cm]Total number of protests"							///
+		"\addlinespace[0.1cm]Total number of protesters"						///
+		"\addlinespace[0.1cm]Treated agencies with early protests"				/// 		
+		"\addlinespace[0.1cm]Control agencies with later protests"				/// 
+		"\addlinespace[0.1cm]Number of cohorts"									///
+		"\addlinespace[0.1cm]Sample size"										///
+		"\addlinespace[0.1cm]Years"												///
+		"\addlinespace[0.1cm]Time unit"											///
+		)																		///
+	)																			///
+	keep( ) replace nomtitles nonotes booktabs nogap nolines			 		///	
+	prehead(\begin{tabular}{l*{20}{x{1.9cm}}} \toprule) 						///
+	posthead()  																///
+	postfoot(\bottomrule \end{tabular}) 
 
 * Exit stata
 exit, clear STATA

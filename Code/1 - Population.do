@@ -24,7 +24,28 @@
 	
 // 2. Open old population data and label consolidated cities
 
-	import delimited "Data\Population\2010-2019-population.csv", clear
+	import delimited "Data\Population\2010-2020-population.csv", clear
+	drop popestimate042020
+	
+	*Keep place summary level
+	keep if sumlev == 162 
+	
+	*Generate place fips
+	gen state_fips = string(state,"%02.0f")
+	gen place_fips = string(place,"%05.0f")
+	gen fips = state_fips + place_fips 
+
+	* Collapse into Unique locality fips
+	collapse (first) city=name stname (sum) pop*, by(fips)
+		
+	*Merge
+	merge 1:1 fips using `temp', keep(1 3) nogen
+	save `temp',replace
+	
+
+// 3. Open old population data and label consolidated cities
+
+	import delimited "Data\Population\2020-2021-population.csv", clear
 	
 	*Keep place summary level
 	keep if sumlev == 162 
@@ -40,10 +61,10 @@
 	*Merge
 	merge 1:1 fips using `temp', keep(1 3) nogen
 	
-// 3. Place Populations
+// 4. Place Populations
 
 	*reshape data
-	reshape long popestimate, i(fips) j(year)  
+	greshape long popestimate, i(fips) j(year)  
 	
 	*make data quarterly
 	gen id=_n
@@ -51,7 +72,7 @@
 	bys id year: gen qtr=year*10+_n
 	drop id
 	
-// 4. Get state abbreviations
+// 5. Get state abbreviations
 
 	preserve
 		import delimited "Data\state_abb.csv", varnames(1) clear 
@@ -60,14 +81,14 @@
 	restore
 	merge m:1 stname using `temp', nogen keep(3)
 
-// 5. Clean Up
+// 6. Clean Up
 
 	order fips stname city qtr
 	sort fips qtr
 	compress
 	save DTA/Population, replace
 	
-// 6. Fips crosswalk
+// 7. Fips crosswalk
 
 	use DTA/Population, clear
 

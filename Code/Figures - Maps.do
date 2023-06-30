@@ -99,7 +99,7 @@ rename stabb STATE
 merge m:1 STATE using usdb, nogen
 collapse (sum) protests, by(_ID)
 spmap protests using uscoord  , id(_ID) point(data("dummy") xcoord(_X) ycoord(_Y) fcolor(red%10) size(small) osize(none)) fcolor(blue%10 blue%50 blue%70 blue%95) legstyle(2)    legend(pos(5) size(*2.5))
-graph export "${user}/Output/Maps/State_Totals.png", replace width(1920)
+graph export "${user}/Output/State_Totals.png", replace width(1920)
 
 * map protests style 2
 use "${user}/DTA/Protest_Daily", clear
@@ -123,7 +123,7 @@ label values variable var
 save "dummy", replace
 
 use usdb, clear
-spmap using uscoord  , id(_ID) point(data("dummy") by(variable) xcoord(_X) ycoord(_Y) fcolor(red%10 blue%33) size(small) osize(none none) legenda(on) leglabel()) legstyle(2)    legend(pos(5) size(*2.5) region(lcolor(black))) 
-graph export "${user}/Output/Maps/Dots.png", replace width(1920)
+spmap using uscoord  , id(_ID) point(data("dummy") by(variable) xcoord(_X) ycoord(_Y) fcolor(red%15 blue%10) size(small) osize(none none) legenda(on) leglabel()) legstyle(2)    legend(pos(5) size(*2.5) region(lcolor(black))) 
+graph export "${user}/Output/Dots.png", replace width(1920)
  
  cd "${user}"

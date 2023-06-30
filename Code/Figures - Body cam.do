@@ -10,36 +10,46 @@ g lower=.
 sum $outcome [aw=weight] if time<0 & time>=-4 & treated==1
 local b=r(mean)
 
-
 * Estimates
-reghdfe $outcome t_*  [aw=weight], cluster(strata) a(${absorb}) 
-forvalues i = 1/7{
-	di "TESTSING PRETREATMENT `i'"
-	lincom (t_`i'-(t_1+t_2+t_3+t_4)/4)/`b'
-	replace est = r(estimate) in `i'
-	replace upper = r(ub) in `i'
-	replace lower = r(lb) in `i'
-}
-	di "TESTING AVERAGE TREATMENT"
-	lincom ((t_5+t_6+t_7)/3 - (t_1+t_2+t_3+t_4)/4)/`b'
-	local est_overall = trim("`: display %10.3f r(estimate)'")
-	local est_se =trim("`: display %10.3f r(se)'")
-	local overall = "Total Effect = `est_overall' (`est_se')"
-	di "`overall'"
-	
+reghdfe $outcome t_*  [aw=_wt_unit], cluster(strata) a(${absorb}) 
+local i=1
+forvalues e=-5/2{
+	if `e'<-1{
+		local z=abs(`e')
+		lincom (t_pre`z')/`b'*100
+	}
+	if `e'>=0{
+		lincom (t_post`e')/`b'*100
+	}
+	if `e'==-1{
+		replace est`j' = 0 in `i'
+		replace upper`j' = 0 in `i'
+		replace lower`j' = 0 in `i'
+	}
+	else{
+		replace est`j' = r(estimate) in `i'
+		replace upper`j' = r(ub) in `i'
+		replace lower`j' = r(lb) in `i'
+	}
+	local i=`i'+1
+}	
+reghdfe $outcome treatment  [aw=_wt_unit], cluster(strata) a(${absorb}) 
+lincom treatment/`b'*100
+local est_overall`j' = trim("`: display %10.2f r(estimate)'")
+local est_se`j' =trim("`: display %10.2f r(se)'")
+local overall`j' = "%{&Delta} Body cameras = `est_overall`j'' (`est_se`j'')"
+di "`overall`j''"
 
+* Figure
 cap drop etime
-gen etime = _n-5 in 1/9
-
+gen etime = _n-6 in 1/10
 keep est upper lower etime
 drop if est==.
-
 twoway 	(rbar upper lower etime , color(${color}%60) lcolor(white) barw(.5) ) ///
 (line est etime , sort lwidth(thick) lcol(${color}%90) lpattern(solid)) ///
 (scatter est etime , sort col(${color}*.95) ms(O) ) ///
-, xline(-1, lpatter(dash) lcol(red)) scheme(plotplain) xtitle(Years relative to first protest) ///
-ytitle("${title1}" "${title2}")  ${yaxis}  xlabel(-4(1)2)  ///
-legend(pos(${pos}) ring(0) size(medsmall) order(2 "${y}" 1 "95% Confidence")) yline(0, lcolor(gs10) lpattern(solid)) ///
-legend(subtitle("`overall'",size(medsmall) position(11)))
-
-graph export "Output/${outcome}`w'${path}.pdf", replace
+, xline(-1, lpatter(dash) lcol(red)) scheme(plotplain) xtitle(Years relative to first protest, size(large)) ///
+ytitle("${title1}" "${title2}", size(large))  ${yaxis}  xlabel(-5(1)2, labsize(large))  ///
+legend(pos(${pos}) ring(0) size(medlarge) order(2 "${y}" 1 "95% Confidence")) yline(0, lcolor(gs10) lpattern(solid)) ///
+legend(subtitle("`overall'",size(medlarge) position(11))) xsize(7)
+graph export "Output/${outcome}.pdf", replace

@@ -26,12 +26,14 @@ forvalues year = 2013(3)2016{
 
 	****** 2) Define Variables **********
 	
-	* Sampling strata
+	* Sampling strata and populatoin
 	if inlist(`year',2013){
 		rename STRATCODE strata
+		rename POP2012 population
 	}
 	if inlist(`year',2016){
 		rename STRATA strata
+		rename POPSERVED population
 	}
 	
 	* Location (recode agency names with missing ORI number to match backbone)
@@ -345,7 +347,7 @@ forvalues year = 2013(3)2016{
 		}
 	}
 	cap rename FINALWGT FINALWT
-	keep ORI* FINALWT  strata `lower'
+	keep ORI* FINALWT  strata `lower' population
 
 	* save file
 	aorder

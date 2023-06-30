@@ -4,6 +4,8 @@ forvalues c = 1/6{
 	
 	* col number
 	use DTA/Stacked, clear
+	bys event fips (time): g cumulative = sum(protests)
+	gegen sum_cumulative = sum(cumulative)
 	local firstrow = "`firstrow' & \multicolumn{1}{c}{(`c')}"
 	cap drop dummy_outcome
 	if `c' == 1 {
@@ -92,7 +94,7 @@ forvalues c = 1/6{
 	}
 		
 	* Estimate
-	reghdfe homicides treatment ${weight}, cluster(fips) a(${absorb})
+	reghdfe homicides cumulative ${weight}, cluster(fips) a(${absorb})
 	eststo
 	
 	* Pretreatment mean
@@ -102,7 +104,7 @@ forvalues c = 1/6{
 	estadd local pre = "`pre'"
 		
 	* Store regression results
-	lincom treatment/`b'*100
+	lincom cumulative/`b'*100
 	local beta: di %10.2fc round(r(estimate),.01)	
 	local beta = trim("`beta'")
 	local se: di %10.2fc round(r(se),.01)	
@@ -111,15 +113,12 @@ forvalues c = 1/6{
 	estadd local overall_se = "(`se')"
 	
 	* Exposed time-units
-	cap drop _dummy
-	gegen _dummy = group(time fips) if inlist(treatment,1)
-	sum _dummy, meanonly
-	local e: di %10.3gc round(r(max),.001)	
-	local e = r(max)
+	sum sum_cumulative, meanonly
+	local e = r(mean)
 	estadd local total_exposed = "`e'"
 	
 	* Total Prevented
-	lincom treatment*`e'
+	lincom cumulative*`e'
 	local beta: di %10.0fc abs(round(r(estimate)))	
 	local beta = trim("`beta'")
 	local se: di %10.1fc round(r(se),.1)	
@@ -176,7 +175,7 @@ forvalues c = 1/6{
 }
 
 * Save Table
-esttab est* using Output/specification.tex, 									///
+esttab est* using Output/cumulative.tex, 										///
 	stats(overall_beta overall_se prevented_beta prevented_se pre 				///
 		total_exposed deaths protests participants tr co coh obs place time pop	///
 		sdid ipw lin_time time_pop consent acs crime,							///
@@ -187,7 +186,7 @@ esttab est* using Output/specification.tex, 									///
 		"\addlinespace[0.3cm]\$\Delta\text{Total Lethal Force}\$" 				///
 			" " 																///
 		"\addlinespace[0.1cm] \midrule Average lethal force pre-protest"		/// 
-		"\addlinespace[0.1cm]Total place-quarters after protest"				/// 		
+		"\addlinespace[0.1cm]Total cumulative protests"							/// 		
 		"\addlinespace[0.1cm]Total lethal force post-protest"					/// 
 		"\addlinespace[0.1cm]Total number of protests"							///
 		"\addlinespace[0.1cm]Total number of protesters"						///
@@ -199,7 +198,7 @@ esttab est* using Output/specification.tex, 									///
 		"\addlinespace[0.1cm]Cohort-event time fixed effects"					///
 		"\addlinespace[0.1cm]Flexible population control"						///
 		"\addlinespace[0.1cm]Synthetic unit weights"							///
-		"\addlinespace[0.1cm]Inverse probability weights"							///
+		"\addlinespace[0.1cm]Inverse probability weights"						///
 		"\addlinespace[0.1cm]Cohort-place linear time trend"					///
 		"\addlinespace[0.1cm]Cohort-time-population quintile fixed effects"		///
 		"\addlinespace[0.1cm]Consent decress controls"							///

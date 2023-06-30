@@ -1,29 +1,15 @@
 
-				**************************
-				  // Import Crime Data
-				**************************
-
 * Unzip Folder
 clear
 cd "${user}\Data\Crime"
-unzipfile "ucr_offenses_known_yearly_1960_2019_dta", replace
-use offenses_known_yearly_1960_2019.dta, clear
+unzipfile "ucr_offenses_known_yearly_1960_2020_dta.zip", replace
+use offenses_known_yearly_1960_2020.dta, clear
 cd ../..
-erase "Data/Crime/offenses_known_yearly_1960_2019.dta"
-
-
-				*************************
-				  // Clean Crime Data
-				*************************
-
-* fips
-gen fips=fips_state_code+fips_place_code
+sleep 10000
+cap erase "Data/Crime/offenses_known_yearly_1960_2020.dta"
 
 * Drop Missing
 drop if number_of_months_missing==12
-
-* fix honolulu (not given place until 2010: 1571550)
-replace fips = "1571550" if fips=="1517000" 
 
 * Clean crime measures
 rename tot_clr_index_property crime_property_clr
@@ -47,8 +33,7 @@ g crime_share = (crime_property_clr)/(crime_property_rpt)
 
 * save
 rename ori ORI7
-rename population_1 ucr_population
-keep ORI7 year crime* ucr_population
+keep ORI7 year crime* population
 drop if year < 2000
 compress
 save DTA/Crimes, replace

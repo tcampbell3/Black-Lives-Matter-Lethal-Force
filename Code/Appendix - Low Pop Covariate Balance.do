@@ -14,12 +14,12 @@ destring fips, replace
 save `temp', replace
 
 * Merge controls to stacked data
-use DTA/Stacked, clear
+use DTA/stacked_pop_150000, clear
 cap g year = int(qtr/10)
 keep if inlist(year,2013)
-keep event fips treated _wt_unit
+keep event fips treated ipw
 merge m:1 fips using `temp', nogen keep(3)
-gcollapse (mean) `controls' treated _wt_unit, by(fips)
+gcollapse (mean) `controls' treated ipw, by(fips)
 
 * label controls
 label var acs_poverty "Poverty"
@@ -54,7 +54,7 @@ preserve
 	local i=1
 	foreach v of varlist `controls'{
 		cap frame drop `tframe'
-		frame put `v' treated stack name fips _wt_unit, into(`tframe')
+		frame put `v' treated stack name fips ipw, into(`tframe')
 		frame `tframe'{
 			keep if inlist(stack,0)
 			rename `v' control
@@ -66,8 +66,8 @@ preserve
 		append using `temp'
 	}
 	drop if inlist(stack,0)
-	keep control stack name treated fips _wt_unit
-	reghdfe control c.treated#i.stack [aw=_wt_unit], a(stack) vce(cluster fips) nocons
+	keep control stack name treated fips ipw
+	reghdfe control c.treated#i.stack [aw=ipw], a(stack) vce(cluster fips) nocons
 	local df1=e(df_a)
 	local df2=e(df_r)	
 	local ftest: di %10.3gc round(e(F),.01)	
@@ -83,7 +83,7 @@ eststo dummy
 est restore dummy
 eststo treated
 foreach v of varlist `controls' {
-	sum `v' [aw=_wt_unit] if inlist(treated,1)
+	sum `v' [aw=ipw] if inlist(treated,1)
 	if abs(r(mean))>=1 {
 		local b: di %10.3fc round(r(mean),.001)
 	}
@@ -106,7 +106,7 @@ estadd scalar places = `r(unique)'
 est restore dummy
 eststo control
 foreach v of varlist `controls' {
-	sum `v' [aw=_wt_unit] if inlist(treated,0)
+	sum `v' [aw=ipw] if inlist(treated,0)
 	if abs(r(mean))>=1 {
 		local b: di %10.3fc round(r(mean),.001)
 	}
@@ -129,7 +129,7 @@ estadd scalar places = `r(unique)'
 est restore dummy
 eststo difference`d'
 foreach v of varlist `controls' {
-	reg `v' treated [aw=_wt_unit], vce(cluster fips)
+	reg `v' treated [aw=ipw], vce(cluster fips)
 	lincom treated
 	if abs(r(estimate))>=1{
 		local b: di %10.3fc round(r(estimate),.001)
@@ -152,7 +152,7 @@ estadd local ctitle="Difference"
 estadd local ftest="`ftest'"
 
 * Table
-esttab treated control difference using Output/cov_balance.tex, ///
+esttab treated control difference using Output/low_pop_cov_balance.tex, ///
 	stats(ctitle acs_poverty acs_labor_force acs_unemployment acs_full_time 	///
 		acs_black acs_black_pov acs_lt_high_school acs_high_school acs_some_college  ///
 		acs_college popestimate crime_officer_safety crime_violent_rpt crime_property_rpt ///

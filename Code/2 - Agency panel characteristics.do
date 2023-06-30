@@ -1,31 +1,34 @@
+* Save LEMAS data
+use DTA/LEMAS_2013, clear
+append using DTA/LEMAS_2016
+drop if inlist(ORI9, "")
+bys ORI9: gegen test=count(FINAL)
+keep if inlist(test,2)
+drop test
+tempfile temp
+save `temp', replace
 
 * ORI9 FIPS crosswalk -> Protest count
 use DTA/backbone, clear
-keep ORI9 fips
 drop if inlist(ORI9,"-1","")
-tempfile ORI9_FIPS
-save `ORI9_FIPS', replace
-
-* Total protests 2014-206
-use "DTA/protests", clear
-g year = int(round(qtr/10))
-drop if year>2016
-gcollapse (sum) protests popnum, by(fips)
-tempfile blm
-save `blm', replace
-
-* Open LEMAS backbone
-use DTA/LEMAS_2013, clear
-append using DTA/LEMAS_2016
-
-* Merge fips
-merge m:1 ORI9 using `ORI9_FIPS', nogen keep(1 3) keepus(fips)
+expand 22
+bys id: g year=_n+1999
+expand 4
+bys id: g qtr=year*10+_n
+drop if inlist(ORI7,"-1")
 
 * Merge BLM protests
-merge m:1 fips using `blm', nogen keep(1 3) keepus(protests popnum)
-drop if inlist(fips,"")
-replace protests = 0 if inlist(protest,.) | inlist(year,2013)
-replace popnum = 0 if inlist(popnum,.)  | inlist(year,2013)
+merge m:1 fips qtr using DTA/protests, nogen keep(1 3) keepus(protests participants)
+replace protests = 0 if inlist(protest,.)
+replace participants = 0 if inlist(participants,.)
+gcollapse (sum) protests participants, by(ORI9 year) 
+
+* Drop agencies without protests ever
+bys ORI9 (year): gegen total_protests_2021 = sum(protests)
+drop if inlist(total_protests_2021,0) 
+
+* Merge LEMAS 
+merge 1:1 ORI9 year using `temp', keep(3) nogen
 
 * Define treated, donor, treatment
 bys ORI9 (year): g cum_protests = sum(protests)
@@ -58,23 +61,20 @@ foreach v of varlist ag_officers_male ag_officers_white ag_officers_black ag_new
 	g `v'_total = `v' * ag_officers
 }
 
-* Fill ORI7
-gsort + ORI9 - ORI7
-bys ORI9: replace ORI7 = ORI7[_n-1] if inlist(ORI7,"")
-
-* UCR Popualation
-merge m:1 ORI7 year using DTA/Crimes, nogen keep(1 3)
-fasterxtile  pop_c=ucr_population, n(10) 
-
 * Adjust stata (random sampling in stata for less than 100 officers. All agencies asked above 100 officers.)
 gegen unit = group(ORI9)
 replace strata = strata + unit*1000 if inlist(strata,101,201,301)
 
+* Replace strings with coded numeric to save storage space
+encode ORI9, gen(ori9)
+drop ORI9
+
+* Coursen controls
+fasterxtile  pop_c=population, n(10)
+
 * Save dataset
-g event=1
-g time= -inlist(year,2013)
 rename FINALWT weight
-order ORI9 unit fips year
-sort ORI9 year
+order unit ori9 year
+gsort unit ori9 year
 compress
 save DTA/Agency_panel_characteristics, replace

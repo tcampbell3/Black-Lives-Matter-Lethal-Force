@@ -2,6 +2,29 @@
 clear all
 use DTA/Summary, clear
 
+* Drop never treated
+bys fips: gegen test=max(protests)
+drop if inlist(test,0)
+drop test
+
+* Drop places with protests other than high profile protests in other areas
+g localscandal = protests > protests_s
+bys fips: gegen test = max(localscandal)
+drop if inlist(test,1) 
+
+* Drop cities with high profile killings if missed in last step
+preserve
+	use  DTA/case_studies, clear
+	keep fips
+	gduplicates drop
+	tempfile temp
+	save `temp'
+restore
+merge m:1 fips using `temp', keep(1) nogen
+
+* Drop data after covid (2020 quarter 1)
+drop if qtr>20201
+
 * Number events
 gegen dummy_time = group(qtr)
 bys fips: gegen start_treatment = min(dummy_time) if treatment==1
@@ -9,18 +32,6 @@ bys fips (start_treatment): replace start_treatment = start_treatment[_n-1] if i
 gegen event=group(start_treatment)
 sum event,meanonly
 local last=r(max)
-
-* Drop data after covid (2020 quarter 1)
-drop if qtr>20201
-
-* Drop never treated
-drop if inlist(start_treatment,.)
-
-* Drop 3 places without pre 2010 data
-bys fips: gegen test=count(qtr)
-sum test, meanonly
-drop if test<r(max)
-drop test
 
 * Loop through cohorts and stack
 tempvar tframe
@@ -34,7 +45,7 @@ forvalues i=1/`last'{
 		
 	* temp frame of cohort
 	cap frame drop `tframe'
-	frame put if inlist(event,`i') | floor((start_treatment-`start')/4)>=${post} , into(`tframe')
+	frame put if inlist(event,`i') | floor((start_treatment-`start')/4)>=5 , into(`tframe')
 	frame `tframe'{
 		
 		* Event time
@@ -46,7 +57,7 @@ forvalues i=1/`last'{
 		replace treated=inlist(event,`i')
 		
 		* Drop outside of event window
-		keep if time >= -${pre}*4 & time < ${post}*4
+		keep if time >= -5*4 & time < 5*4
 		
 		* label event and save stack
 		replace event=`i'
@@ -79,12 +90,12 @@ sum test, meanonly
 drop if test<r(max)
 
 * Pretreatment dummies
-forvalues i=2/$pre {
+forvalues i=2/5 {
 	gen t_pre`i'=inlist(treated,1) & (time >= -`i'*4 & time < -(`i'-1)*4)
 }
 
 * Posttreatment dummies
-forvalues i=1/$post {
+forvalues i=1/5 {
 	local j=`i'-1
 	gen t_post`j'=inlist(treated,1) & (time >= `j'*4 & time < (`j'+1)*4)
 }
@@ -93,29 +104,19 @@ forvalues i=1/$post {
 destring fips, replace
 gsort event fips time
 
-* IPW Weights
-global controls = "popest ag_* crime_* acs_* geo_* pol_* h_* consent_* tweet_*"
-global outcome="homicides"
-do "Do Files/ipw"
-
 * Coarsen controls
-cap drop *_c
-fasterxtile  pop_c=popest, n(10)
-g officers = ag_officers														// Normalization var for table
-g violent = crime_violent_clr													// Normalization var for table
-g arrests = crime_property_clr+crime_violent_clr								// Normalization var for table
-foreach v of varlist acs_* crime_* {
-	fasterxtile  `v'_c=`v', n(10)
-	replace `v'_c = 99 if inlist(`v'_c,.)
-	drop `v'
-}
+cap drop pop_c
+fasterxtile  pop_c=popest, n(10) 
 
 * SDID weights
 do "Do Files/sdid" homicides fips qtr pop
+reghdfe  homicides t_* [aw=_wt_unit], vce(cluster fips) a(event#fips event#qtr event#pop_c##c.popest)
+sum homicides if inlist(treated,1) & inlist(floor(time/4),-1)
+local b=r(mean)
+lincom ((t_post0+t_post1+t_post2+t_post3+t_post4)/5-(0+t_pre2+t_pre3+t_pre4+t_pre5)/5)/`b'
 
 * Clean and save	
-keep event fips time qtr homicides* t_* treatment treated pop_c _wt* ipw participants total_protests acs_* crime_* consent* popest officers violent arrests protests video
+keep event fips time qtr homicides* t_* treatment treated pop_c _wt_unit participants total_protests popest    protests
 compress
 gsort event fips time
-save DTA/Stacked, replace
-clear all
+save DTA/Solidarity, replace
